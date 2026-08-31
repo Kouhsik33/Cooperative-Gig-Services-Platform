@@ -1,0 +1,299 @@
+// Data model per SIH26089_FINAL_Development_Spec.md — Part D.
+// PostGIS-backed PostgreSQL. Lat/lng kept as Float columns for now;
+// upgrade to a native geography column + PostGIS ST_Distance query
+// when implementing Requirement 4 (geo-matching) in Phase 1.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Federation {
+  id          String       @id @default(uuid())
+  name        String
+  region      String
+  createdAt   DateTime     @default(now())
+  societies   Society[]
+  welfareFund WelfareFund?
+  // FEDERATION_ADMIN users scoped to this federation. One admin belongs to
+  // at most one federation for now (see User.federationId) — if
+  // multi-federation admins are ever needed, replace this with a join
+  // table (e.g. FederationAdmin { userId, federationId }) rather than
+  // widening this FK.
+  admins      User[]
+}
+
+model Society {
+  id           String     @id @default(uuid())
+  name         String
+  federationId String
+  federation   Federation @relation(fields: [federationId], references: [id])
+  workers      Worker[]
+  // One representative pincode per society/locality — enough for the
+  // admin's geo-spatial "demand by area" view (Requirement 4/34) without
+  // modeling full multi-pincode coverage areas.
+  pincode      String?
+}
+
+model User {
+  id                 String            @id @default(uuid())
+  name               String
+  phone              String            @unique
+  role               Role
+  language           String            @default("en")
+  // Nullable: admin-web still authenticates with phone+password
+  // (POST /auth/login, unchanged), but the mobile app's customer/worker
+  // accounts are now passwordless (POST /auth/otp/*) and simply never set
+  // this — not a security downgrade for those accounts, since /auth/login
+  // rejects any user with passwordHash === null outright.
+  passwordHash       String?
+  worker             Worker?
+  // Only meaningful for role === FEDERATION_ADMIN; null for CUSTOMER/WORKER.
+  federationId       String?
+  federation         Federation?       @relation(fields: [federationId], references: [id])
+  bookingsAsCustomer Booking[]         @relation("CustomerBookings")
+  addresses          CustomerAddress[]
+}
+
+// Saved, reusable addresses (master prompt §8 — "profile address = reusable
+// saved address"). Deliberately separate from Booking's own
+// serviceAddress* snapshot fields: editing/deleting a saved address must
+// never change what a past booking recorded.
+model CustomerAddress {
+  id           String   @id @default(uuid())
+  customerId   String
+  customer     User     @relation(fields: [customerId], references: [id])
+  label        String // "Home" | "Work" | "Other" | a custom name
+  line1        String
+  line2        String?
+  landmark     String?
+  pincode      String
+  latitude     Float
+  longitude    Float
+  contactName  String?
+  contactPhone String?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+enum Role {
+  CUSTOMER
+  WORKER
+  FEDERATION_ADMIN
+}
+
+model Worker {
+  id                 String                   @id @default(uuid())
+  userId             String                   @unique
+  user               User                     @relation(fields: [userId], references: [id])
+  societyId          String
+  society            Society                  @relation(fields: [societyId], references: [id])
+  skills             String[]
+  certifications     String[]
+  verificationStatus VerificationStatus       @default(SUBMITTED)
+  latitude           Float?
+  longitude          Float?
+  ratingAvg          Float                    @default(0)
+  // Dispatch model (SIH26089 "dispatch model" update) — only AVAILABLE
+  // workers are considered for broadcast; flips to BUSY the instant a
+  // worker wins a booking's accept race, back to AVAILABLE on that
+  // booking's completion/cancellation.
+  availability       WorkerAvailability       @default(AVAILABLE)
+  bookings           Booking[]
+  welfareTx          WelfareFundTransaction[]
+}
+
+enum WorkerAvailability {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+enum VerificationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+model Service {
+  id        String    @id @default(uuid())
+  name      String
+  category  String
+  basePrice Float
+  bookings  Booking[]
+}
+
+model Booking {
+  id                  String        @id @default(uuid())
+  customerId          String
+  customer            User          @relation("CustomerBookings", fields: [customerId], references: [id])
+  // Nullable — the dispatch model (customer books a SERVICE, not a
+  // worker): a booking starts with no worker at all, broadcast to every
+  // eligible worker, and workerId is only ever set by the atomic
+  // first-accept-wins claim in booking.controller.ts's acceptBooking.
+  workerId            String?
+  worker              Worker?       @relation(fields: [workerId], references: [id])
+  serviceId           String
+  service             Service       @relation(fields: [serviceId], references: [id])
+  status              BookingStatus @default(REQUESTED)
+  isEmergency         Boolean       @default(false)
+  scheduledAt         DateTime
+  // Service coordinates — doubles as the "where the professional should
+  // arrive" point used for geo-matching at creation time.
+  latitude            Float
+  longitude           Float
+  totalAmount         Float
+  workerShare         Float
+  federationFee       Float
+  welfareContribution Float
+  emergencyBonus      Float         @default(0)
+  payment             Payment?
+  rating              Rating?
+  createdAt           DateTime      @default(now())
+
+  // Service address snapshot (master prompt §8/§43) — deliberately its own
+  // fields on Booking, not a foreign key to CustomerAddress: a booking's
+  // recorded address must never change if the customer later edits or
+  // deletes the saved address it was copied from.
+  serviceAddressLine String?
+  serviceLandmark    String?
+  servicePincode     String?
+  contactName        String?
+  contactPhone       String?
+  instructions       String?
+
+  // Lifecycle timestamps (master prompt §18/§19/§25), set only via the
+  // OTP-gated transitions in booking.controller.ts — never by a plain
+  // status PATCH.
+  serviceStartedAt   DateTime?
+  serviceCompletedAt DateTime?
+
+  // Dispatch tracking (SIH26089 "dispatch model" update, §40-41) — no
+  // separate BookingWorkerRequest join table; eligibility is recomputed
+  // on demand (see dispatch.service.ts) rather than persisted per-worker,
+  // so this is just enough for the admin's "N eligible, assigned in Ns"
+  // visibility.
+  eligibleWorkerCount Int?
+  broadcastAt         DateTime?
+  assignedAt          DateTime?
+
+  otps     OtpVerification[]
+  messages ChatMessage[]
+}
+
+// REQUESTED now means "created, broadcasting to eligible workers, no
+// worker assigned yet" (workerId is null) — the dispatch model replaced
+// the previous "customer picks a specific worker, who then separately
+// accepts" flow, so the old ACCEPTED value is no longer used by new
+// bookings (kept in the enum so historical rows stay valid; new bookings
+// go straight from REQUESTED to ASSIGNED via the atomic accept race).
+enum BookingStatus {
+  REQUESTED
+  ACCEPTED
+  ASSIGNED
+  ON_THE_WAY
+  ARRIVED
+  IN_PROGRESS
+  COMPLETION_PENDING
+  COMPLETED
+  CANCELLED
+  REJECTED
+  EXPIRED
+}
+
+enum OtpPurpose {
+  LOGIN
+  SERVICE_START
+  SERVICE_COMPLETION
+}
+
+// Single generic OTP table for every purpose (master prompt §41 suggests
+// separate ServiceStartOtp/ServiceCompletionOtp tables, but §43 also says
+// "reuse existing schema ... do not duplicate tables unnecessarily" — one
+// purpose-tagged table serves LOGIN and both service OTPs without
+// duplication). Plaintext otp is a deliberate demo-scope simplification
+// (§41 — "for the demo, prioritize simplicity while keeping the
+// architecture extensible"), not how a production system would store it.
+model OtpVerification {
+  id         String     @id @default(uuid())
+  phone      String
+  otp        String
+  purpose    OtpPurpose
+  bookingId  String?
+  booking    Booking?   @relation(fields: [bookingId], references: [id])
+  expiresAt  DateTime
+  attempts   Int        @default(0)
+  verifiedAt DateTime?
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([phone, purpose])
+  @@index([bookingId, purpose])
+}
+
+// Worker <-> customer chat (master prompt §22/§23), scoped to one booking
+// and only meaningful once a worker is assigned — enforced in the
+// controller, not the schema.
+model ChatMessage {
+  id         String   @id @default(uuid())
+  bookingId  String
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  senderId   String
+  senderRole Role
+  text       String
+  createdAt  DateTime @default(now())
+
+  @@index([bookingId, createdAt])
+}
+
+model Payment {
+  id         String    @id @default(uuid())
+  bookingId  String    @unique
+  booking    Booking   @relation(fields: [bookingId], references: [id])
+  razorpayId String?
+  status     String
+  paidAt     DateTime?
+}
+
+model Rating {
+  id        String  @id @default(uuid())
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  stars     Int
+  comment   String?
+}
+
+model WelfareFund {
+  id           String                   @id @default(uuid())
+  federationId String                   @unique
+  federation   Federation               @relation(fields: [federationId], references: [id])
+  balance      Float                    @default(0)
+  transactions WelfareFundTransaction[]
+}
+
+model WelfareFundTransaction {
+  id            String      @id @default(uuid())
+  welfareFundId String
+  welfareFund   WelfareFund @relation(fields: [welfareFundId], references: [id])
+  workerId      String
+  worker        Worker      @relation(fields: [workerId], references: [id])
+  bookingId     String?
+  amount        Float
+  type          String // "contribution" | "claim"
+  createdAt     DateTime    @default(now())
+}
+
+model DemandForecast {
+  id                 String   @id @default(uuid())
+  federationId       String
+  serviceCategory    String
+  forecastDate       DateTime
+  predictedBookings  Int
+  recommendedWorkers Int
+  createdAt          DateTime @default(now())
+}

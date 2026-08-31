@@ -1,0 +1,109 @@
+{
+  "common": {
+    "appName": "Cooperative Gig Services",
+    "loading": "Loading...",
+    "cancel": "Cancel"
+  },
+  "auth": {
+    "phonePlaceholder": "Phone number",
+    "passwordPlaceholder": "Password",
+    "loginButton": "Log In",
+    "loginFailedTitle": "Login failed",
+    "loginFailedMessage": "Check your phone number and password.",
+    "adminOnlyTitle": "Use the admin dashboard",
+    "adminOnlyMessage": "Federation admins sign in at the admin-web dashboard, not the mobile app.",
+    "registerTitle": "Register"
+  },
+  "customer": {
+    "serviceCatalogTitle": "Service Catalog",
+    "workerSearchTitle": "Search Workers",
+    "bookingSlotTitle": "Select Slot",
+    "loadError": "Could not load services.",
+    "noWorkersFound": "No verified workers found nearby for this service.",
+    "verifiedBy": "Verified by {{federation}}",
+    "kmAway": "{{distance}} km away",
+    "minEta": "~{{minutes}} min",
+    "selectDate": "Select date",
+    "selectTime": "Select time",
+    "confirmBooking": "Confirm Booking",
+    "today": "Today",
+    "tomorrow": "Tomorrow"
+  },
+  "fairPricing": {
+    "title": "Fair Pricing Breakdown",
+    "totalPrice": "Total price",
+    "workerShare": "Worker's share",
+    "federationFee": "Federation fee",
+    "welfareContribution": "Welfare contribution",
+    "emergencyBonus": "Emergency bonus",
+    "emergencyBonusNote": "goes to your worker",
+    "confirmAndPay": "Confirm & Pay",
+    "loadError": "Could not compute pricing. Please try again."
+  },
+  "checkout": {
+    "title": "Checkout",
+    "order": "Order",
+    "mockNotice": "Test-mode mock order — no live Razorpay keys configured.",
+    "amountDue": "Amount due",
+    "simulatePayment": "Simulate Payment",
+    "simulating": "Processing...",
+    "simulateSuccess": "Payment marked as paid (simulated).",
+    "simulateError": "Could not simulate payment.",
+    "viewInvoice": "View Invoice",
+    "loadError": "Could not create a payment order."
+  },
+  "invoice": {
+    "titlePrefix": "Invoice",
+    "basePrice": "Base price",
+    "totalPaid": "Total paid",
+    "payment": "Payment",
+    "loadError": "Could not load invoice."
+  },
+  "rating": {
+    "title": "Rate Your Worker",
+    "commentPlaceholder": "Add a comment (optional)",
+    "microcopy": "Your rating affects this worker's visibility for future jobs — cooperative workers are ranked by service quality, not by platform fees paid.",
+    "submit": "Submit Rating",
+    "submitError": "Could not submit rating",
+    "submitErrorMessage": "Please try again."
+  },
+  "worker": {
+    "onboardingTitle": "Verification Status",
+    "jobFeedTitle": "Job Feed",
+    "earningsTitle": "Earnings",
+    "emergencyAlertTitle": "Emergency Job Alert",
+    "noJobs": "No job requests right now.",
+    "youEarn": "You earn",
+    "emergencyBonusIncluded": "incl. emergency bonus",
+    "accept": "Accept",
+    "emergencyBanner": "Emergency job request!",
+    "emergencyBannerDismiss": "Dismiss"
+  },
+  "emergency": {
+    "title": "Emergency Booking",
+    "subtitle": "Get matched to the nearest available worker right now.",
+    "bookNow": "Book Now",
+    "loadError": "Could not load services.",
+    "noWorkersAvailable": "No available workers right now for this service.",
+    "matchError": "Could not match you to a worker. Please try again."
+  },
+  "earnings": {
+    "runningTotal": "Total earnings",
+    "jobHistory": "Job history",
+    "noJobs": "No completed jobs yet.",
+    "loadError": "Could not load earnings."
+  },
+  "myWelfare": {
+    "title": "My Welfare",
+    "totalContributions": "Total welfare contributions",
+    "insuranceStatus": "Insurance status",
+    "transactionHistory": "Contribution history",
+    "noTransactions": "No welfare contributions yet.",
+    "loadError": "Could not load welfare data."
+  },
+  "language": {
+    "en": "English",
+    "hi": "हिंदी",
+    "mr": "मराठी"
+  }
+}

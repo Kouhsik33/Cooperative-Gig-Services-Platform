@@ -1,0 +1,109 @@
+{
+  "common": {
+    "appName": "सहकारी गिग सेवा",
+    "loading": "लोड होत आहे...",
+    "cancel": "रद्द करा"
+  },
+  "auth": {
+    "phonePlaceholder": "फोन नंबर",
+    "passwordPlaceholder": "पासवर्ड",
+    "loginButton": "लॉग इन करा",
+    "loginFailedTitle": "लॉगिन अयशस्वी",
+    "loginFailedMessage": "तुमचा फोन नंबर आणि पासवर्ड तपासा.",
+    "adminOnlyTitle": "अ‍ॅडमिन डॅशबोर्ड वापरा",
+    "adminOnlyMessage": "फेडरेशन अ‍ॅडमिनने मोबाइल अ‍ॅपऐवजी admin-web डॅशबोर्डवर साइन इन करावे.",
+    "registerTitle": "नोंदणी करा"
+  },
+  "customer": {
+    "serviceCatalogTitle": "सेवा यादी",
+    "workerSearchTitle": "कामगार शोधा",
+    "bookingSlotTitle": "वेळ निवडा",
+    "loadError": "सेवा लोड करता आल्या नाहीत.",
+    "noWorkersFound": "या सेवेसाठी जवळपास कोणीही पडताळणी झालेला कामगार आढळला नाही.",
+    "verifiedBy": "{{federation}} द्वारे पडताळणी झाली",
+    "kmAway": "{{distance}} किमी दूर",
+    "minEta": "~{{minutes}} मिनिटे",
+    "selectDate": "तारीख निवडा",
+    "selectTime": "वेळ निवडा",
+    "confirmBooking": "बुकिंगची पुष्टी करा",
+    "today": "आज",
+    "tomorrow": "उद्या"
+  },
+  "fairPricing": {
+    "title": "न्याय्य किंमत तपशील",
+    "totalPrice": "एकूण किंमत",
+    "workerShare": "कामगाराचा वाटा",
+    "federationFee": "फेडरेशन शुल्क",
+    "welfareContribution": "कल्याण योगदान",
+    "emergencyBonus": "आपत्कालीन बोनस",
+    "emergencyBonusNote": "तुमच्या कामगाराला जातो",
+    "confirmAndPay": "पुष्टी करा आणि पैसे द्या",
+    "loadError": "किंमत मोजता आली नाही. कृपया पुन्हा प्रयत्न करा."
+  },
+  "checkout": {
+    "title": "चेकआउट",
+    "order": "ऑर्डर",
+    "mockNotice": "टेस्ट-मोड मॉक ऑर्डर — कोणतीही लाइव्ह Razorpay की कॉन्फिगर केलेली नाही.",
+    "amountDue": "देय रक्कम",
+    "simulatePayment": "पेमेंट सिम्युलेट करा",
+    "simulating": "प्रक्रिया सुरू आहे...",
+    "simulateSuccess": "पेमेंट यशस्वी म्हणून चिन्हांकित (सिम्युलेटेड).",
+    "simulateError": "पेमेंट सिम्युलेट करता आले नाही.",
+    "viewInvoice": "इनव्हॉइस पहा",
+    "loadError": "पेमेंट ऑर्डर तयार करता आली नाही."
+  },
+  "invoice": {
+    "titlePrefix": "इनव्हॉइस",
+    "basePrice": "मूळ किंमत",
+    "totalPaid": "एकूण भरणा",
+    "payment": "पेमेंट",
+    "loadError": "इनव्हॉइस लोड करता आले नाही."
+  },
+  "rating": {
+    "title": "तुमच्या कामगाराला रेट करा",
+    "commentPlaceholder": "टिप्पणी जोडा (ऐच्छिक)",
+    "microcopy": "तुमचे रेटिंग या कामगाराच्या भविष्यातील कामांसाठीच्या दृश्यमानतेवर परिणाम करते — सहकारी कामगारांना सेवा गुणवत्तेनुसार क्रमवारी दिली जाते, प्लॅटफॉर्म शुल्कानुसार नाही.",
+    "submit": "रेटिंग सबमिट करा",
+    "submitError": "रेटिंग सबमिट करता आले नाही",
+    "submitErrorMessage": "कृपया पुन्हा प्रयत्न करा."
+  },
+  "worker": {
+    "onboardingTitle": "पडताळणी स्थिती",
+    "jobFeedTitle": "कामांची यादी",
+    "earningsTitle": "कमाई",
+    "emergencyAlertTitle": "आपत्कालीन कामाचा इशारा",
+    "noJobs": "सध्या कोणतीही कामाची विनंती नाही.",
+    "youEarn": "तुम्ही कमवाल",
+    "emergencyBonusIncluded": "आपत्कालीन बोनससह",
+    "accept": "स्वीकार करा",
+    "emergencyBanner": "आपत्कालीन कामाची विनंती!",
+    "emergencyBannerDismiss": "रद्द करा"
+  },
+  "emergency": {
+    "title": "आपत्कालीन बुकिंग",
+    "subtitle": "आत्ताच जवळच्या उपलब्ध कामगाराशी जुळवा.",
+    "bookNow": "आत्ता बुक करा",
+    "loadError": "सेवा लोड करता आल्या नाहीत.",
+    "noWorkersAvailable": "या सेवेसाठी सध्या कोणीही कामगार उपलब्ध नाही.",
+    "matchError": "तुम्हाला कामगाराशी जुळवता आले नाही. कृपया पुन्हा प्रयत्न करा."
+  },
+  "earnings": {
+    "runningTotal": "एकूण कमाई",
+    "jobHistory": "कामाचा इतिहास",
+    "noJobs": "अजून कोणतेही पूर्ण झालेले काम नाही.",
+    "loadError": "कमाई लोड करता आली नाही."
+  },
+  "myWelfare": {
+    "title": "माझे कल्याण",
+    "totalContributions": "एकूण कल्याण योगदान",
+    "insuranceStatus": "विमा स्थिती",
+    "transactionHistory": "योगदान इतिहास",
+    "noTransactions": "अजून कोणतेही कल्याण योगदान नाही.",
+    "loadError": "कल्याण डेटा लोड करता आला नाही."
+  },
+  "language": {
+    "en": "English",
+    "hi": "हिंदी",
+    "mr": "मराठी"
+  }
+}

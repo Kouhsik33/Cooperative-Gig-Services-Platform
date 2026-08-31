@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Mirrors tailwind.config.js's palette — used where a raw value is
+     cleaner than a utility class, e.g. chart series colors in recharts. */
+  --color-primary: #0f6b5c;
+  --color-primary-dark: #0a4f44;
+  --color-secondary: #c97b3d;
+  --color-success: #1e8e5a;
+  --color-warning: #b7791f;
+  --color-error: #d64545;
+  --color-info: #2f6fb0;
+}
+
+body {
+  background-color: #f7f8f6;
+}

@@ -1,0 +1,109 @@
+{
+  "common": {
+    "appName": "सहकारी गिग सेवाएं",
+    "loading": "लोड हो रहा है...",
+    "cancel": "रद्द करें"
+  },
+  "auth": {
+    "phonePlaceholder": "फ़ोन नंबर",
+    "passwordPlaceholder": "पासवर्ड",
+    "loginButton": "लॉग इन करें",
+    "loginFailedTitle": "लॉगिन विफल",
+    "loginFailedMessage": "अपना फ़ोन नंबर और पासवर्ड जांचें।",
+    "adminOnlyTitle": "एडमिन डैशबोर्ड का उपयोग करें",
+    "adminOnlyMessage": "फ़ेडरेशन एडमिन को मोबाइल ऐप के बजाय admin-web डैशबोर्ड पर साइन इन करना चाहिए।",
+    "registerTitle": "पंजीकरण करें"
+  },
+  "customer": {
+    "serviceCatalogTitle": "सेवा सूची",
+    "workerSearchTitle": "कामगार खोजें",
+    "bookingSlotTitle": "समय चुनें",
+    "loadError": "सेवाएं लोड नहीं हो सकीं।",
+    "noWorkersFound": "इस सेवा के लिए आस-पास कोई सत्यापित कामगार नहीं मिला।",
+    "verifiedBy": "{{federation}} द्वारा सत्यापित",
+    "kmAway": "{{distance}} किमी दूर",
+    "minEta": "~{{minutes}} मिनट",
+    "selectDate": "तारीख चुनें",
+    "selectTime": "समय चुनें",
+    "confirmBooking": "बुकिंग की पुष्टि करें",
+    "today": "आज",
+    "tomorrow": "कल"
+  },
+  "fairPricing": {
+    "title": "उचित मूल्य विवरण",
+    "totalPrice": "कुल मूल्य",
+    "workerShare": "कामगार का हिस्सा",
+    "federationFee": "फ़ेडरेशन शुल्क",
+    "welfareContribution": "कल्याण योगदान",
+    "emergencyBonus": "आपातकालीन बोनस",
+    "emergencyBonusNote": "आपके कामगार को जाता है",
+    "confirmAndPay": "पुष्टि करें और भुगतान करें",
+    "loadError": "मूल्य की गणना नहीं हो सकी। कृपया पुनः प्रयास करें।"
+  },
+  "checkout": {
+    "title": "चेकआउट",
+    "order": "ऑर्डर",
+    "mockNotice": "टेस्ट-मोड मॉक ऑर्डर — कोई लाइव Razorpay कुंजी कॉन्फ़िगर नहीं है।",
+    "amountDue": "देय राशि",
+    "simulatePayment": "भुगतान सिम्युलेट करें",
+    "simulating": "प्रक्रिया जारी है...",
+    "simulateSuccess": "भुगतान सफल के रूप में चिह्नित (सिम्युलेटेड)।",
+    "simulateError": "भुगतान सिम्युलेट नहीं हो सका।",
+    "viewInvoice": "इनवॉइस देखें",
+    "loadError": "भुगतान ऑर्डर नहीं बन सका।"
+  },
+  "invoice": {
+    "titlePrefix": "इनवॉइस",
+    "basePrice": "मूल मूल्य",
+    "totalPaid": "कुल भुगतान",
+    "payment": "भुगतान",
+    "loadError": "इनवॉइस लोड नहीं हो सका।"
+  },
+  "rating": {
+    "title": "अपने कामगार को रेट करें",
+    "commentPlaceholder": "टिप्पणी जोड़ें (वैकल्पिक)",
+    "microcopy": "आपकी रेटिंग भविष्य के कार्यों के लिए इस कामगार की दृश्यता को प्रभावित करती है — सहकारी कामगारों को सेवा गुणवत्ता के आधार पर स्थान दिया जाता है, प्लेटफ़ॉर्म शुल्क के आधार पर नहीं।",
+    "submit": "रेटिंग सबमिट करें",
+    "submitError": "रेटिंग सबमिट नहीं हो सकी",
+    "submitErrorMessage": "कृपया पुनः प्रयास करें।"
+  },
+  "worker": {
+    "onboardingTitle": "सत्यापन स्थिति",
+    "jobFeedTitle": "कार्य सूची",
+    "earningsTitle": "कमाई",
+    "emergencyAlertTitle": "आपातकालीन कार्य अलर्ट",
+    "noJobs": "अभी कोई कार्य अनुरोध नहीं है।",
+    "youEarn": "आप कमाएंगे",
+    "emergencyBonusIncluded": "आपातकालीन बोनस सहित",
+    "accept": "स्वीकार करें",
+    "emergencyBanner": "आपातकालीन कार्य अनुरोध!",
+    "emergencyBannerDismiss": "खारिज करें"
+  },
+  "emergency": {
+    "title": "आपातकालीन बुकिंग",
+    "subtitle": "अभी निकटतम उपलब्ध कामगार से जुड़ें।",
+    "bookNow": "अभी बुक करें",
+    "loadError": "सेवाएं लोड नहीं हो सकीं।",
+    "noWorkersAvailable": "इस सेवा के लिए अभी कोई कामगार उपलब्ध नहीं है।",
+    "matchError": "आपको कामगार से नहीं जोड़ा जा सका। कृपया पुनः प्रयास करें।"
+  },
+  "earnings": {
+    "runningTotal": "कुल कमाई",
+    "jobHistory": "कार्य इतिहास",
+    "noJobs": "अभी तक कोई पूर्ण कार्य नहीं है।",
+    "loadError": "कमाई लोड नहीं हो सकी।"
+  },
+  "myWelfare": {
+    "title": "मेरा कल्याण",
+    "totalContributions": "कुल कल्याण योगदान",
+    "insuranceStatus": "बीमा स्थिति",
+    "transactionHistory": "योगदान इतिहास",
+    "noTransactions": "अभी तक कोई कल्याण योगदान नहीं है।",
+    "loadError": "कल्याण डेटा लोड नहीं हो सका।"
+  },
+  "language": {
+    "en": "English",
+    "hi": "हिंदी",
+    "mr": "मराठी"
+  }
+}
