@@ -8,6 +8,8 @@ import paymentRoutes from "./payment.routes";
 import forecastRoutes from "./forecast.routes";
 import addressRoutes from "./address.routes";
 import societyRoutes from "./society.routes";
+import impactRoutes from "./impact.routes";
+import notificationRoutes from "./notification.routes";
 
 const router = Router();
 
@@ -20,5 +22,7 @@ router.use("/payments", paymentRoutes);
 router.use("/forecast", forecastRoutes);
 router.use("/addresses", addressRoutes);
 router.use("/societies", societyRoutes);
+router.use("/impact", impactRoutes);
+router.use("/notifications", notificationRoutes);
 
 export default router;

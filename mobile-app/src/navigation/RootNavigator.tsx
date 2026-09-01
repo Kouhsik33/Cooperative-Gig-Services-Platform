@@ -7,6 +7,7 @@ import CustomerNavigator from "./CustomerNavigator";
 import WorkerNavigator from "./WorkerNavigator";
 import { useAuth } from "../store/AuthContext";
 import { LocationProvider } from "../store/LocationContext";
+import { NotificationProvider } from "../store/NotificationContext";
 import { screenOptions } from "./stackStyle";
 
 // Single Expo app, role-routed post-login (CUSTOMER / WORKER share this
@@ -45,7 +46,13 @@ export default function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user.role === "WORKER" ? (
         user.worker ? (
-          <Stack.Screen name="WorkerApp" component={WorkerNavigator} />
+          <Stack.Screen name="WorkerApp">
+            {() => (
+              <NotificationProvider>
+                <WorkerNavigator />
+              </NotificationProvider>
+            )}
+          </Stack.Screen>
         ) : (
           // A brand-new WORKER account has no Worker profile yet (skills/
           // society/certifications) — onboarding must come before the
@@ -55,9 +62,11 @@ export default function RootNavigator() {
       ) : (
         <Stack.Screen name="CustomerApp">
           {() => (
-            <LocationProvider>
-              <CustomerNavigator />
-            </LocationProvider>
+            <NotificationProvider>
+              <LocationProvider>
+                <CustomerNavigator />
+              </LocationProvider>
+            </NotificationProvider>
           )}
         </Stack.Screen>
       )}

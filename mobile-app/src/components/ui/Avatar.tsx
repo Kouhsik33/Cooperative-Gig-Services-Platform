@@ -1,25 +1,15 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors } from "../../theme/tokens";
+import { avatarPalette, colors } from "../../theme/tokens";
 
 // Master prompt §44 — polished avatar placeholders, never a broken image
 // box. Deterministic color + initials from the person's name, so the
 // same worker always renders the same "avatar" across screens.
-const PALETTE = [
-  "#0F6B5C",
-  "#C97B3D",
-  "#2F6FB0",
-  "#A85F27",
-  "#5B6B65",
-  "#B7791F",
-  "#1E8E5A",
-];
-
 function colorForName(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
   }
-  return PALETTE[hash % PALETTE.length];
+  return avatarPalette[hash % avatarPalette.length];
 }
 
 function initialsForName(name: string): string {

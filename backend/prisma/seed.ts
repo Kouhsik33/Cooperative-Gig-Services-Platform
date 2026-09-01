@@ -10,6 +10,8 @@
 import { PrismaClient, Role, VerificationStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { computeWageSplit } from "../src/services/wageSplit";
+import { serviceDefs } from "./data/services";
+import { packageDefs } from "./data/packages";
 
 const prisma = new PrismaClient();
 
@@ -63,19 +65,15 @@ async function main() {
     },
   });
 
-  const serviceDefs = [
-    { name: "Electrical Repair", category: "electrician", basePrice: 500 },
-    { name: "Plumbing Repair", category: "plumber", basePrice: 450 },
-    { name: "Elderly Care Visit", category: "caregiver", basePrice: 600 },
-    { name: "Home Deep Cleaning", category: "cleaner", basePrice: 400 },
-    { name: "Local Driver (per trip)", category: "driver", basePrice: 350 },
-    { name: "Gardening & Lawn Care", category: "gardener", basePrice: 300 },
-    { name: "Appliance Repair", category: "technician", basePrice: 550 },
-    { name: "AC Servicing", category: "technician", basePrice: 650 },
-  ];
   const services = [];
   for (const s of serviceDefs) {
-    services.push(await prisma.service.create({ data: s }));
+    const created = await prisma.service.create({ data: s });
+    services.push(created);
+    for (const def of packageDefs[s.name] ?? []) {
+      await prisma.servicePackage.create({
+        data: { serviceId: created.id, ...def, isDefault: def.isDefault ?? false },
+      });
+    }
   }
 
   const workerNames = [
@@ -92,7 +90,10 @@ async function main() {
   for (let i = 0; i < workerNames.length; i++) {
     const name = workerNames[i];
     const primarySkill = skills[i % skills.length];
-    const secondarySkill = Math.random() < 0.3 ? pick(skills) : undefined;
+    // Must differ from the primary — pick() could otherwise return the
+    // same skill, producing a worker with {technician, technician}.
+    const otherSkills = skills.filter((s) => s !== primarySkill);
+    const secondarySkill = Math.random() < 0.3 ? pick(otherSkills) : undefined;
     const society = societies[i % societies.length];
 
     // Phone numbering: index 0 is the primary demo electrician

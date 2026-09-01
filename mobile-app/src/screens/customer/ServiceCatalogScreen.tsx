@@ -5,22 +5,39 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { HomeStackParamList } from "../../navigation/CustomerNavigator";
 import { useTabSwitch } from "../../navigation/TabSwitchContext";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
+import NotificationBell from "../../components/NotificationBell";
 import { getServices } from "../../api/services";
-import type { Service } from "../../api/types";
-import { formatCurrency } from "../../lib/format";
+import { listMyBookings } from "../../api/bookings";
+import { getCooperativeImpact } from "../../api/impact";
+import type { CooperativeImpact } from "../../api/impact";
+import type { Booking, BookingStatus, Service } from "../../api/types";
+import { formatCompact, formatCompactCurrency, formatCurrency } from "../../lib/format";
 import { iconForCategory } from "../../lib/categoryIcons";
 import { useAuth } from "../../store/AuthContext";
 import { useServiceLocation } from "../../store/LocationContext";
-import { Card, Chip, ErrorState, LoadingState, ServiceCard } from "../../components/ui";
+import { Card, Chip, ErrorState, ServiceCard, SkeletonList, StatusBadge } from "../../components/ui";
 import { colors, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { icons, iconSize } from "../../theme/icons";
 
 type Props = NativeStackScreenProps<HomeStackParamList, "ServiceCatalog">;
 
+// Everything from "we're searching" through to "awaiting your completion
+// code" — i.e. a booking the customer may still need to act on.
+const ACTIVE_STATUSES: BookingStatus[] = [
+  "REQUESTED",
+  "ASSIGNED",
+  "ON_THE_WAY",
+  "ARRIVED",
+  "IN_PROGRESS",
+  "COMPLETION_PENDING",
+];
+
 const WHY_CHOOSE_US = [
-  { icon: "✅", title: "Verified Professionals", body: "Every worker is federation-checked." },
-  { icon: "⚖️", title: "Fair Worker Earnings", body: "No hidden platform commission." },
-  { icon: "🔍", title: "Transparent Pricing", body: "See the exact split before you pay." },
-  { icon: "🤝", title: "Worker Welfare", body: "Every job funds the safety net." },
+  { icon: icons.verified, key: "Verified" },
+  { icon: icons.fairWage, key: "Fair" },
+  { icon: icons.search, key: "Transparent" },
+  { icon: icons.welfare, key: "Welfare" },
 ];
 
 // Customer Home tab (master prompt §8, product-flow update §10-12) —
@@ -39,6 +56,8 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
+  const [impact, setImpact] = useState<CooperativeImpact | null>(null);
+  const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
 
   function load() {
     if (!location) return;
@@ -57,6 +76,24 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
   // refresh services").
   useEffect(load, [location?.latitude, location?.longitude]);
 
+  // Location-independent, so it loads once. A failure here must not take
+  // the catalog down with it — the impact card simply stays hidden.
+  useEffect(() => {
+    getCooperativeImpact()
+      .then(setImpact)
+      .catch(() => setImpact(null));
+  }, []);
+
+  // A booking already in flight is the most actionable thing a returning
+  // customer can see, so home surfaces it above the catalog rather than
+  // making them find the Bookings tab. Failure is silent for the same
+  // reason as impact — it must not take the catalog down.
+  useEffect(() => {
+    listMyBookings()
+      .then((all) => setActiveBooking(all.find((b) => ACTIVE_STATUSES.includes(b.status)) ?? null))
+      .catch(() => setActiveBooking(null));
+  }, []);
+
   const categories = useMemo(
     () => Array.from(new Set(services.map((s) => s.category))),
     [services]
@@ -70,17 +107,18 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
     return matchesQuery && matchesCategory;
   });
 
-  // Dispatch model (§8-9) — tapping a service goes straight to
-  // scheduling; there is no "choose your professional" step, the system
-  // finds one automatically after booking.
+  // Tapping a service opens its detail page first (§12) — what's
+  // included, how long it takes, what people thought — and the customer
+  // books from there. Still no "choose your professional" step: the
+  // dispatch engine picks the worker after the booking is placed (§8-9).
   function openService(service: Service) {
-    navigation.navigate("BookingSlot", {
+    navigation.navigate("ServiceDetail", {
       serviceId: service.id,
       serviceName: service.name,
     });
   }
 
-  if (!location || loading) return <LoadingState />;
+  if (!location || loading) return <SkeletonList count={5} variant="card" />;
   if (error) return <ErrorState message={error} onRetry={load} />;
 
   return (
@@ -92,26 +130,53 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
       ListHeaderComponent={
         <View>
           <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.greeting}>Hi {user?.name?.split(" ")[0] ?? "there"} 👋</Text>
-              <Text style={styles.subGreeting}>What do you need help with?</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.greeting}>{t("home.greeting", { name: user?.name?.split(" ")[0] ?? "" })}</Text>
+              <Text style={styles.subGreeting}>{t("home.prompt")}</Text>
             </View>
+            <NotificationBell onPress={() => navigation.navigate("Notifications")} />
           </View>
 
           <TouchableOpacity
             style={styles.locationRow}
             onPress={() => navigation.navigate("LocationPicker")}
           >
-            <Text style={styles.locationIcon}>📍</Text>
+            <Ionicons name={icons.location} size={iconSize.md} color={colors.primary} style={styles.locationIcon} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.locationLabel}>Service location</Text>
+              <Text style={styles.locationLabel}>{t("home.serviceLocation")}</Text>
               <Text style={styles.locationValue} numberOfLines={1}>
                 {location.label}
                 {location.line1 ? ` — ${location.line1}` : ""}
               </Text>
             </View>
-            <Text style={styles.locationChange}>Change</Text>
+            <Text style={styles.locationChange}>{t("home.change")}</Text>
           </TouchableOpacity>
+
+          {activeBooking && (
+            <TouchableOpacity
+              style={styles.activeCard}
+              onPress={() =>
+                navigation.navigate("BookingTracking", { bookingId: activeBooking.id })
+              }
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <View style={styles.activeHeader}>
+                <Text style={styles.activeLabel}>{t("home.activeBooking")}</Text>
+                <StatusBadge status={activeBooking.status} />
+              </View>
+              <Text style={styles.activeService}>{activeBooking.service.name}</Text>
+              <Text style={styles.activeMeta}>
+                {activeBooking.worker
+                  ? activeBooking.worker.user.name
+                  : t("bookings.findingProfessional")}
+              </Text>
+              <View style={styles.ctaRow}>
+              <Text style={styles.activeCta}>{t("home.trackNow")}</Text>
+              <Ionicons name={icons.chevron} size={iconSize.sm} color={colors.primary} />
+            </View>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.switcher}>
             <LanguageSwitcher persist />
@@ -119,7 +184,7 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
 
           <TextInput
             style={styles.search}
-            placeholder="Search e.g. plumber, cleaning, electrician"
+            placeholder={t("home.searchPlaceholder")}
             placeholderTextColor={colors.textMuted}
             value={query}
             onChangeText={setQuery}
@@ -131,17 +196,14 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
             activeOpacity={0.85}
           >
             <View style={{ flex: 1 }}>
-              <Text style={styles.emergencyTitle}>🚨 Need help right now?</Text>
-              <Text style={styles.emergencyBody}>
-                Book Emergency Service — the +20% urgency amount goes entirely to
-                your worker.
-              </Text>
+              <Text style={styles.emergencyTitle}>{t("home.emergencyTitle")}</Text>
+<Text style={styles.emergencyBody}>{t("home.emergencyBody")}</Text>
             </View>
           </TouchableOpacity>
 
           {categories.length > 0 && (
             <View style={styles.categoryRow}>
-              <Chip label="All" selected={!category} onPress={() => setCategory(null)} />
+              <Chip label={t("home.all")} selected={!category} onPress={() => setCategory(null)} />
               {categories.map((c) => (
                 <Chip
                   key={c}
@@ -153,44 +215,70 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
             </View>
           )}
 
-          <Text style={styles.sectionTitle}>Services</Text>
+          <Text style={styles.sectionTitle}>{t("home.services")}</Text>
         </View>
       }
       renderItem={({ item }) => (
-        <View>
-          <ServiceCard
-            icon={iconForCategory(item.category)}
-            name={item.name}
-            category={item.category}
-            priceLabel={`${formatCurrency(item.basePrice, i18n.language)} onwards`}
-            onPress={() => openService(item)}
-          />
-          {item.coverage === false && (
-            <Text style={styles.noCoverage}>Not yet available near {location.label}</Text>
-          )}
-        </View>
+        <ServiceCard
+          icon={iconForCategory(item.category)}
+          name={item.name}
+          category={item.category}
+          priceLabel={t("home.onwards", { price: formatCurrency(item.basePrice, i18n.language) })}
+          ratingAvg={item.ratingAvg}
+          ratingCount={item.ratingCount}
+          completedCount={item.completedCount}
+          durationLabel={
+            item.durationMinMinutes && item.durationMaxMinutes
+              ? t("home.minutes", { min: item.durationMinMinutes, max: item.durationMaxMinutes })
+              : null
+          }
+          trustLabel={t("home.trustShort")}
+          unavailableLabel={
+            item.coverage === false ? t("home.notAvailableNear", { area: location.label }) : null
+          }
+          onPress={() => openService(item)}
+        />
       )}
       ListFooterComponent={
         <View>
-          <Text style={styles.sectionTitle}>Why choose us</Text>
+          <Text style={styles.sectionTitle}>{t("home.whyChooseUs")}</Text>
           <View style={styles.whyGrid}>
             {WHY_CHOOSE_US.map((w) => (
-              <Card key={w.title} style={styles.whyCard} elevated={false}>
-                <Text style={styles.whyIcon}>{w.icon}</Text>
-                <Text style={styles.whyTitle}>{w.title}</Text>
-                <Text style={styles.whyBody}>{w.body}</Text>
+              <Card key={w.key} style={styles.whyCard} elevated={false}>
+                <Ionicons name={w.icon} size={iconSize.md} color={colors.primaryDark} style={styles.whyIcon} />
+                <Text style={styles.whyTitle}>{t(`home.why${w.key}Title`)}</Text>
+                <Text style={styles.whyBody}>{t(`home.why${w.key}Body`)}</Text>
               </Card>
             ))}
           </View>
 
-          <Card style={styles.impactCard}>
-            <Text style={styles.impactTitle}>Cooperative impact</Text>
-            <View style={styles.impactRow}>
-              <ImpactStat value="1,248" label="workers supported" />
-              <ImpactStat value="₹8.4L" label="welfare contributed" />
-              <ImpactStat value="18,420" label="services completed" />
-            </View>
-          </Card>
+          {/* Real aggregates from GET /impact. Rendered only once the
+              numbers have actually arrived — an impact claim is worth
+              nothing if it can show a placeholder. */}
+          {impact && (
+            <Card style={styles.impactCard}>
+              <Text style={styles.impactTitle}>{t("home.impactTitle")}</Text>
+              <View style={styles.impactRow}>
+                <ImpactStat
+                  value={formatCompact(impact.verifiedWorkers)}
+                  label={t("home.impactWorkers")}
+                />
+                <ImpactStat
+                  value={formatCompactCurrency(impact.welfareGenerated)}
+                  label={t("home.impactWelfare")}
+                />
+                <ImpactStat
+                  value={formatCompact(impact.completedServices)}
+                  label={t("home.impactServices")}
+                />
+              </View>
+              {impact.avgWorkerSharePercent != null && (
+                <Text style={styles.impactFooter}>
+                  {t("home.impactShare", { percent: impact.avgWorkerSharePercent })}
+                </Text>
+              )}
+            </Card>
+          )}
         </View>
       }
     />
@@ -207,8 +295,9 @@ function ImpactStat({ value, label }: { value: string; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  ctaRow: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 12 },
   list: { padding: spacing.xl, paddingBottom: spacing.xxxl },
-  headerRow: { marginBottom: spacing.md },
+  headerRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: spacing.md },
   greeting: { ...type.h1, color: colors.textPrimary },
   subGreeting: { ...type.body, color: colors.textSecondary, marginTop: 2 },
   locationRow: {
@@ -221,11 +310,24 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginTop: spacing.lg,
   },
-  locationIcon: { fontSize: 18, marginRight: spacing.sm },
+  locationIcon: { marginRight: spacing.sm },
   locationLabel: { ...type.caption, color: colors.textMuted },
   locationValue: { ...type.smallMedium, color: colors.textPrimary, marginTop: 1 },
   locationChange: { ...type.smallMedium, color: colors.primary },
   switcher: { marginVertical: spacing.lg, alignItems: "flex-start" },
+  activeCard: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    padding: spacing.lg,
+    marginTop: spacing.lg,
+  },
+  activeHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  activeLabel: { ...type.caption, color: colors.primaryDark },
+  activeService: { ...type.h3, color: colors.textPrimary, marginTop: spacing.xs },
+  activeMeta: { ...type.small, color: colors.textSecondary, marginTop: 2 },
+  activeCta: { ...type.smallMedium, color: colors.primary, marginTop: spacing.md },
   search: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -256,12 +358,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     marginBottom: spacing.md,
   },
-  whyIcon: { fontSize: 22, marginBottom: spacing.xs },
+  whyIcon: { marginBottom: spacing.xs },
   whyTitle: { ...type.smallMedium, color: colors.primaryDark },
   whyBody: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
   impactCard: { marginTop: spacing.md, backgroundColor: colors.primaryDark, borderWidth: 0 },
   impactTitle: { ...type.smallMedium, color: colors.primaryLight, marginBottom: spacing.md },
   impactRow: { flexDirection: "row", justifyContent: "space-between" },
+  impactFooter: {
+    ...type.caption,
+    color: colors.primaryLight,
+    marginTop: spacing.lg,
+    textAlign: "center",
+  },
   impactStat: { alignItems: "center", flex: 1 },
   impactValue: { ...type.h2, color: colors.textInverse },
   impactLabel: { ...type.caption, color: colors.primaryLight, marginTop: 2, textAlign: "center" },

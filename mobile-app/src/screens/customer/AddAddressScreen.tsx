@@ -1,22 +1,24 @@
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { HomeStackParamList } from "../../navigation/CustomerNavigator";
 import { createAddress } from "../../api/addresses";
 import { useServiceLocation, addressToLocation } from "../../store/LocationContext";
 import { DEMO_LOCATION } from "../../lib/location";
-import { Button, Chip } from "../../components/ui";
+import { Button, Chip, FormScreen } from "../../components/ui";
 import { colors, radius, spacing, type } from "../../theme/tokens";
+import { useTranslation } from "react-i18next";
 
 type Props = NativeStackScreenProps<HomeStackParamList, "AddAddress">;
 
-const LABELS = ["Home", "Work", "Other"];
+const LABELS = ["Home", "Work", "Other"] as const;
 
 // Swiggy-style address details form (product-flow update §9). Latitude/
 // longitude default to DEMO_LOCATION jittered slightly — there's no
 // geocoding service wired in, so a typed street address can't be turned
 // into real coordinates yet; flagged rather than faked as precise.
 export default function AddAddressScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { refreshAddresses, setLocation } = useServiceLocation();
   const [label, setLabel] = useState("Home");
   const [line1, setLine1] = useState("");
@@ -29,7 +31,7 @@ export default function AddAddressScreen({ navigation }: Props) {
 
   async function submit() {
     if (!line1.trim() || !pincode.trim()) {
-      Alert.alert("House/flat details and pincode are required");
+      Alert.alert(t("address.required"));
       return;
     }
     setSubmitting(true);
@@ -49,32 +51,32 @@ export default function AddAddressScreen({ navigation }: Props) {
       setLocation(addressToLocation(address));
       navigation.pop(2);
     } catch {
-      Alert.alert("Could not save this address. Please try again.");
+      Alert.alert(t("address.saveError"));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Add new address</Text>
+    <FormScreen contentContainerStyle={styles.container}>
+      <Text style={styles.title}>{t("address.title")}</Text>
 
-      <Text style={styles.label}>Save as</Text>
+      <Text style={styles.label}>{t("address.saveAs")}</Text>
       <View style={styles.chipRow}>
         {LABELS.map((l) => (
-          <Chip key={l} label={l} selected={label === l} onPress={() => setLabel(l)} />
+          <Chip key={l} label={t(`address.label${l}`)} selected={label === l} onPress={() => setLabel(l)} />
         ))}
       </View>
 
-      <Field label="House / Flat / Door No." value={line1} onChangeText={setLine1} placeholder="Flat 302, Green Residency" />
-      <Field label="Building / Apartment / Area" value={line2} onChangeText={setLine2} placeholder="Kothrud" />
-      <Field label="Landmark (optional)" value={landmark} onChangeText={setLandmark} placeholder="Near City Hospital" />
-      <Field label="Pincode" value={pincode} onChangeText={setPincode} placeholder="411038" keyboardType="number-pad" />
-      <Field label="Contact name" value={contactName} onChangeText={setContactName} placeholder="Who should the professional ask for?" />
-      <Field label="Contact phone" value={contactPhone} onChangeText={setContactPhone} placeholder="10-digit mobile number" keyboardType="phone-pad" />
+      <Field label={t("address.line1")} value={line1} onChangeText={setLine1} placeholder={t("address.line1Placeholder")} />
+      <Field label={t("address.line2")} value={line2} onChangeText={setLine2} placeholder={t("address.line2Placeholder")} />
+      <Field label={t("address.landmark")} value={landmark} onChangeText={setLandmark} placeholder={t("address.landmarkPlaceholder")} />
+      <Field label={t("address.pincode")} value={pincode} onChangeText={setPincode} placeholder="411038" keyboardType="number-pad" />
+      <Field label={t("address.contactName")} value={contactName} onChangeText={setContactName} placeholder={t("address.contactNamePlaceholder")} />
+      <Field label={t("address.contactPhone")} value={contactPhone} onChangeText={setContactPhone} placeholder={t("address.contactPhonePlaceholder")} keyboardType="phone-pad" />
 
-      <Button label="Save address" onPress={submit} loading={submitting} style={styles.button} />
-    </ScrollView>
+      <Button label={t("address.save")} onPress={submit} loading={submitting} style={styles.button} />
+    </FormScreen>
   );
 }
 

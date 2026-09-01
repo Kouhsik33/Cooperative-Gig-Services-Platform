@@ -12,20 +12,39 @@ import {
 import type { Booking } from "../../api/types";
 import { formatDateTime } from "../../lib/format";
 import { getSocket } from "../../lib/socket";
-import { Avatar, Button, Card, LoadingState, StatusBadge } from "../../components/ui";
+import {
+  Avatar,
+  BookingTimeline,
+  Button,
+  Card,
+  ErrorState,
+  MapPanel,
+  Rating,
+  SkeletonList,
+  StatusBadge,
+  TIMELINE_ORDER,
+  timelineIndexFor,
+} from "../../components/ui";
 import { colors, radius, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { icons, iconSize } from "../../theme/icons";
 
 type Props = NativeStackScreenProps<HomeStackParamList, "BookingTracking">;
 
-const TIMELINE = [
-  { key: "ASSIGNED", label: "Professional assigned" },
-  { key: "ON_THE_WAY", label: "On the way" },
-  { key: "ARRIVED", label: "Arrived" },
-  { key: "IN_PROGRESS", label: "Service in progress" },
-  { key: "COMPLETED", label: "Service completed" },
-];
+const TIMELINE_LABEL_KEYS: Record<string, string> = {
+  REQUESTED: "tracking.bookingConfirmed",
+  ASSIGNED: "tracking.timelineAssigned",
+  ON_THE_WAY: "tracking.timelineOnTheWay",
+  ARRIVED: "tracking.timelineArrived",
+  IN_PROGRESS: "tracking.timelineInProgress",
+  COMPLETED: "tracking.timelineCompleted",
+};
 
-const SEARCH_STEPS = ["Checking availability", "Matching skills", "Checking service area"];
+const SEARCH_STEPS = [
+  "tracking.stepAvailability",
+  "tracking.stepSkills",
+  "tracking.stepArea",
+];
 
 // The customer's live view of the booking lifecycle (product-flow update
 // §17-21, §27, dispatch model update §17-19/§32/§48). Booking starts
@@ -40,12 +59,14 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [otp, setOtp] = useState<{ purpose: string; otp: string } | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [redispatching, setRedispatching] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const b = await getBookingById(bookingId);
       setBooking(b);
+      setLoadFailed(false);
       if (b.status === "ARRIVED") {
         const code = await getServiceOtp(bookingId, "SERVICE_START");
         setOtp({ purpose: "SERVICE_START", otp: code.otp });
@@ -55,6 +76,8 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
       } else {
         setOtp(null);
       }
+    } catch {
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -92,7 +115,7 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
       const updated = await redispatchBooking(bookingId);
       setBooking(updated);
     } catch {
-      Alert.alert("Could not search again right now. Please try again.");
+      Alert.alert(t("tracking.searchAgainError"));
     } finally {
       setRedispatching(false);
     }
@@ -100,12 +123,12 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
 
   function confirmCancel() {
     Alert.alert(
-      "Cancel booking?",
-      "Cancellation policy: this booking will be cancelled immediately and cannot be undone.",
+      t("tracking.cancelTitle"),
+      t("tracking.cancelPolicy"),
       [
-        { text: "Keep booking", style: "cancel" },
+        { text: t("tracking.keepBooking"), style: "cancel" },
         {
-          text: "Cancel booking",
+          text: t("tracking.cancelBooking"),
           style: "destructive",
           onPress: async () => {
             const updated = await updateBookingStatus(bookingId, "CANCELLED");
@@ -116,64 +139,92 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
     );
   }
 
-  if (loading || !booking) return <LoadingState />;
+  if (loading) return <SkeletonList count={3} variant="row" />;
+  if (loadFailed || !booking) {
+    return <ErrorState message={t("common.bookingLoadFailed")} onRetry={load} retryLabel={t("common.retry")} />;
+  }
 
   if (booking.status === "REQUESTED") {
     return (
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.searchingHero}>
           <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.searchingTitle}>Finding a verified professional near you...</Text>
+          <Text style={styles.searchingTitle}>{t("tracking.searchingTitle")}</Text>
           <Text style={styles.searchingSubtitle}>{booking.service.name}</Text>
         </View>
 
         <Card style={styles.searchStepsCard}>
           {SEARCH_STEPS.map((step) => (
-            <Text key={step} style={styles.searchStep}>
-              ● {step}
-            </Text>
+            <View key={step} style={styles.searchStepRow}>
+              <Ionicons name="ellipse" size={7} color={colors.primary} />
+              <Text style={styles.searchStep}>{t(step)}</Text>
+            </View>
           ))}
           {booking.eligibleWorkerCount != null && (
             <Text style={styles.searchMeta}>
               {booking.eligibleWorkerCount > 0
-                ? `${booking.eligibleWorkerCount} nearby professional${booking.eligibleWorkerCount === 1 ? "" : "s"} notified`
-                : "No professional is currently available in this area."}
+                ? t(
+                    booking.eligibleWorkerCount === 1
+                      ? "tracking.notifiedOne"
+                      : "tracking.notifiedMany",
+                    { count: booking.eligibleWorkerCount }
+                  )
+                : t("tracking.noneAvailable")}
             </Text>
           )}
         </Card>
 
-        <Button label="Keep searching" onPress={keepSearching} loading={redispatching} style={styles.searchAction} />
+        <Button label={t("tracking.keepSearching")} onPress={keepSearching} loading={redispatching} style={styles.searchAction} />
         <Button
-          label="Change service"
+          label={t("tracking.changeService")}
           variant="outline"
           onPress={() => navigation.popToTop()}
           style={styles.searchAction}
         />
-        <Button label="Cancel booking" variant="outline" onPress={confirmCancel} style={styles.cancelButton} />
+        <Button
+          label={t("tracking.cancelBooking")}
+          variant="outline"
+          onPress={confirmCancel}
+          style={styles.cancelButton}
+        />
       </ScrollView>
     );
   }
 
-  const currentIndex = TIMELINE.findIndex((s) => s.key === booking.status);
+  const currentIndex = timelineIndexFor(booking.status);
   const isTerminal = ["CANCELLED", "REJECTED", "EXPIRED"].includes(booking.status);
   const canCancel = !isTerminal && booking.status !== "COMPLETED";
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.workerRow}>
-        <Avatar name={booking.worker?.user.name ?? "?"} size={52} />
-        <View style={styles.workerText}>
-          <Text style={styles.workerName}>{booking.worker?.user.name}</Text>
-          <Text style={styles.serviceName}>{booking.service.name}</Text>
+      <Card style={styles.workerCard}>
+        <View style={styles.workerRow}>
+          <Avatar name={booking.worker?.user.name ?? "?"} size={52} />
+          <View style={styles.workerText}>
+            <Text style={styles.workerEyebrow}>{t("tracking.professional")}</Text>
+            <Text style={styles.workerName}>{booking.worker?.user.name}</Text>
+            <View style={styles.workerMetaRow}>
+              {booking.worker?.verificationStatus === "VERIFIED" && (
+                <View style={styles.verifiedRow}>
+                  <Ionicons name={icons.verified} size={iconSize.xs} color={colors.success} />
+                  <Text style={styles.verifiedTag}>{t("tracking.verified")}</Text>
+                </View>
+              )}
+              {booking.worker?.ratingAvg != null && booking.worker.ratingAvg > 0 && (
+                <Rating value={booking.worker.ratingAvg} />
+              )}
+            </View>
+          </View>
+          <StatusBadge status={booking.status} />
         </View>
-        <StatusBadge status={booking.status} />
-      </View>
+        <Text style={styles.serviceName}>{booking.service.name}</Text>
+      </Card>
 
       {booking.worker && (
         <View style={styles.contactRow}>
-          <Button label="📞 Call professional" variant="outline" onPress={callWorker} style={styles.contactButton} />
+          <Button label={t("tracking.callProfessional")} variant="outline" onPress={callWorker} style={styles.contactButton} />
           <Button
-            label="💬 Chat"
+            label={t("tracking.chat")}
             variant="outline"
             onPress={() =>
               navigation.navigate("Chat", { bookingId, otherPartyName: booking.worker!.user.name })
@@ -183,22 +234,42 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
         </View>
       )}
 
+      {["ASSIGNED", "ON_THE_WAY"].includes(booking.status) && (
+        <MapPanel
+          statusLabel={t("tracking.onTheWayTo")}
+          liveUnavailableLabel={t("tracking.mapNotLive")}
+          origin={{ latitude: 0, longitude: 0, label: booking.worker?.user.name ?? "" }}
+          destination={{
+            latitude: booking.latitude ?? 0,
+            longitude: booking.longitude ?? 0,
+            label: booking.serviceAddressLine ?? t("tracking.yourLocation"),
+          }}
+        />
+      )}
+
       {!isTerminal && (
         <Card style={styles.timelineCard}>
-          {TIMELINE.map((step, i) => (
-            <View key={step.key} style={styles.timelineRow}>
-              <View style={[styles.timelineDot, i <= currentIndex && styles.timelineDotDone]} />
-              <Text style={[styles.timelineLabel, i <= currentIndex && styles.timelineLabelDone]}>
-                {step.label}
-              </Text>
-            </View>
-          ))}
+          <BookingTimeline
+            currentIndex={currentIndex}
+            steps={TIMELINE_ORDER.map((key) => ({
+              key,
+              label: t(TIMELINE_LABEL_KEYS[key]),
+              detail:
+                key === "IN_PROGRESS" && booking.serviceStartedAt
+                  ? formatDateTime(booking.serviceStartedAt, i18n.language)
+                  : key === "COMPLETED" && booking.serviceCompletedAt
+                  ? formatDateTime(booking.serviceCompletedAt, i18n.language)
+                  : null,
+            }))}
+          />
         </Card>
       )}
 
       {isTerminal && (
         <Card style={styles.timelineCard}>
-          <Text style={styles.cancelledText}>This booking was {booking.status.toLowerCase()}.</Text>
+          <Text style={styles.cancelledText}>
+            {t("tracking.terminal", { status: booking.status.toLowerCase() })}
+          </Text>
         </Card>
       )}
 
@@ -206,28 +277,25 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
         <Card style={styles.otpCard}>
           <Text style={styles.otpTitle}>
             {otp.purpose === "SERVICE_START"
-              ? "Your professional has arrived"
-              : "Your professional has finished the service"}
+              ? t("tracking.arrivedTitle")
+              : t("tracking.finishedTitle")}
           </Text>
           <Text style={styles.otpSubtitle}>
-            {otp.purpose === "SERVICE_START" ? "Service start OTP" : "Completion OTP"}
+            {otp.purpose === "SERVICE_START" ? t("tracking.startOtp") : t("tracking.completionOtp")}
           </Text>
           <Text style={styles.otpValue}>{otp.otp}</Text>
-          <Text style={styles.otpHint}>Share this code with your professional to continue.</Text>
+          <Text style={styles.otpHint}>{t("tracking.otpHint")}</Text>
         </Card>
-      )}
-
-      {booking.status === "IN_PROGRESS" && booking.serviceStartedAt && (
-        <Text style={styles.startedText}>
-          Started at {formatDateTime(booking.serviceStartedAt, i18n.language)}
-        </Text>
       )}
 
       {booking.status === "COMPLETED" && (
         <View style={styles.completedActions}>
           <Text style={styles.completedText}>
-            Service completed at{" "}
-            {booking.serviceCompletedAt ? formatDateTime(booking.serviceCompletedAt, i18n.language) : ""}
+            {t("tracking.completedAt", {
+              time: booking.serviceCompletedAt
+                ? formatDateTime(booking.serviceCompletedAt, i18n.language)
+                : "",
+            })}
           </Text>
           <Button
             label={t("rating.title")}
@@ -244,7 +312,12 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
       )}
 
       {canCancel && (
-        <Button label="Cancel booking" variant="outline" onPress={confirmCancel} style={styles.cancelButton} />
+        <Button
+          label={t("tracking.cancelBooking")}
+          variant="outline"
+          onPress={confirmCancel}
+          style={styles.cancelButton}
+        />
       )}
     </ScrollView>
   );
@@ -256,13 +329,19 @@ const styles = StyleSheet.create({
   searchingTitle: { ...type.h2, color: colors.textPrimary, textAlign: "center", marginTop: spacing.lg },
   searchingSubtitle: { ...type.body, color: colors.textSecondary, marginTop: spacing.xs },
   searchStepsCard: { marginBottom: spacing.xl },
-  searchStep: { ...type.body, color: colors.textSecondary, marginBottom: spacing.sm },
+  searchStepRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },
+  searchStep: { ...type.body, color: colors.textSecondary },
   searchMeta: { ...type.smallMedium, color: colors.primaryDark, marginTop: spacing.sm },
   searchAction: { marginBottom: spacing.md },
-  workerRow: { flexDirection: "row", alignItems: "center", marginBottom: spacing.lg },
+  workerCard: { marginBottom: spacing.lg },
+  workerRow: { flexDirection: "row", alignItems: "center" },
+  workerEyebrow: { ...type.caption, color: colors.textMuted },
+  workerMetaRow: { flexDirection: "row", alignItems: "center", marginTop: spacing.xs, gap: spacing.sm },
+  verifiedRow: { flexDirection: "row", alignItems: "center", gap: 2 },
+  verifiedTag: { ...type.caption, color: colors.success, fontWeight: "700" },
   workerText: { flex: 1, marginLeft: spacing.md },
   workerName: { ...type.h3, color: colors.textPrimary },
-  serviceName: { ...type.small, color: colors.textSecondary, marginTop: 2 },
+  serviceName: { ...type.small, color: colors.textSecondary, marginTop: spacing.md },
   contactRow: { flexDirection: "row", marginBottom: spacing.xl, gap: spacing.md },
   contactButton: { flex: 1 },
   timelineCard: { marginBottom: spacing.lg },

@@ -5,6 +5,7 @@ import { useAuth } from "../store/AuthContext";
 import { getSocket } from "../lib/socket";
 import StatusBadge from "../components/StatusBadge";
 import EmptyState from "../components/EmptyState";
+import { CalendarDays, Siren } from "lucide-react";
 
 interface EmergencyAlert {
   id: string;
@@ -60,8 +61,9 @@ export default function BookingsOverview() {
       {emergencyAlert && (
         <div className="mb-4 flex items-center justify-between rounded-card border-2 border-red-500 bg-red-50 p-4">
           <div>
-            <p className="font-semibold text-red-700">
-              🚨 Emergency booking: {emergencyAlert.serviceName}
+            <p className="flex items-center gap-2 font-semibold text-red-700">
+              <Siren className="h-4 w-4" aria-hidden="true" />
+              Emergency booking: {emergencyAlert.serviceName}
             </p>
             <p className="text-sm text-red-600">
               Customer: {emergencyAlert.customerName} · Worker share incl. bonus: ₹
@@ -81,9 +83,10 @@ export default function BookingsOverview() {
       {isLoading || !bookings ? (
         <p className="text-ink-muted">Loading...</p>
       ) : bookings.length === 0 ? (
-        <EmptyState icon="📅" title="No bookings yet." />
+        <EmptyState Icon={CalendarDays} title="No bookings yet." />
       ) : (
-        <table className="w-full rounded-card border border-ink/10 bg-surface text-left text-sm shadow-card">
+        <div className="overflow-x-auto">
+        <table className="w-full rounded-card border border-ink/10 bg-surface text-left text-sm shadow-card min-w-[720px]">
           <thead>
             <tr className="border-b border-ink/10 text-ink-muted">
               <th className="px-4 py-3">Service</th>
@@ -134,6 +137,7 @@ export default function BookingsOverview() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

@@ -22,6 +22,15 @@ export const env = {
     webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? "",
   },
   aiServiceUrl: process.env.AI_SERVICE_URL ?? "http://localhost:8000",
+  booking: {
+    // How long a REQUESTED booking keeps searching before it is swept
+    // into EXPIRED (master prompt §18). 30 minutes is a demo-friendly
+    // default: long enough that a judge tapping through never sees a
+    // booking expire mid-demo, short enough that the sweeper is
+    // observable if you go looking.
+    requestTtlMinutes: Number(process.env.BOOKING_REQUEST_TTL_MINUTES ?? 30),
+    expirySweepSeconds: Number(process.env.BOOKING_EXPIRY_SWEEP_SECONDS ?? 60),
+  },
   otp: {
     // Demo OTP configuration — a single, named place for "every dummy/
     // demo phone number always gets a fixed OTP", instead of an

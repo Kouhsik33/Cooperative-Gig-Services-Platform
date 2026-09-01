@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View } from "react-native";
 import { colors, radius, spacing, type } from "../../theme/tokens";
 import type { BookingStatus } from "../../api/types";
+import { Ionicons } from "@expo/vector-icons";
+import { icons, iconSize } from "../../theme/icons";
 
 interface BadgeProps {
   label: string;
@@ -49,7 +51,7 @@ export function StatusBadge({ status }: { status: BookingStatus | string }) {
 export function VerifiedBadge({ label }: { label: string }) {
   return (
     <View style={styles.verifiedRow}>
-      <Text style={styles.verifiedCheck}>✓</Text>
+      <Ionicons name={icons.verified} size={iconSize.xs} color={colors.success} style={styles.verifiedCheck} />
       <Text style={styles.verifiedLabel}>{label}</Text>
     </View>
   );

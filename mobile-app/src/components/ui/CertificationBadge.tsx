@@ -1,10 +1,12 @@
 import { StyleSheet, Text, View } from "react-native";
 import { colors, radius, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { icons, iconSize } from "../../theme/icons";
 
 export default function CertificationBadge({ label }: { label: string }) {
   return (
     <View style={styles.badge}>
-      <Text style={styles.icon}>🎖️</Text>
+      <Ionicons name="ribbon-outline" size={iconSize.sm} color={colors.secondaryDark} style={styles.icon} />
       <Text style={styles.label}>{label}</Text>
     </View>
   );

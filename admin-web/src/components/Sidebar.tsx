@@ -1,14 +1,26 @@
 import { NavLink } from "react-router-dom";
+import {
+  BarChart3,
+  CalendarDays,
+  HandHeart,
+  Handshake,
+  Map,
+  ShieldCheck,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { useAuth } from "../store/AuthContext";
 
+// Vector icons, not emoji: navigation glyphs must render identically on
+// every OS and take their colour from the active/inactive state.
 const NAV_ITEMS = [
-  { to: "/", label: "Overview", icon: "📊", end: true },
-  { to: "/workers", label: "Workers", icon: "👷" },
-  { to: "/workers/verification", label: "Verification", icon: "✅" },
-  { to: "/bookings", label: "Bookings", icon: "📅" },
-  { to: "/welfare-fund", label: "Welfare Fund", icon: "🤝" },
-  { to: "/forecast", label: "Demand Forecast", icon: "📈" },
-  { to: "/geo-demand", label: "Geo Demand", icon: "🗺️" },
+  { to: "/", label: "Overview", Icon: BarChart3, end: true },
+  { to: "/workers", label: "Workers", Icon: Users },
+  { to: "/workers/verification", label: "Verification", Icon: ShieldCheck },
+  { to: "/bookings", label: "Bookings", Icon: CalendarDays },
+  { to: "/welfare-fund", label: "Welfare Fund", Icon: HandHeart },
+  { to: "/forecast", label: "Demand Forecast", Icon: TrendingUp },
+  { to: "/geo-demand", label: "Geo Demand", Icon: Map },
 ];
 
 // Operations command-center shell (master prompt §29) — replaces the flat
@@ -19,7 +31,7 @@ export default function Sidebar() {
   return (
     <aside className="flex h-screen w-64 flex-shrink-0 flex-col border-r border-ink/10 bg-surface">
       <div className="flex items-center gap-2 px-6 py-6">
-        <span className="text-2xl">🤝</span>
+        <Handshake className="h-7 w-7 text-primary" aria-hidden="true" />
         <div>
           <p className="text-sm font-bold leading-tight text-ink">Cooperative</p>
           <p className="text-xs leading-tight text-ink-muted">Federation Admin</p>
@@ -40,7 +52,7 @@ export default function Sidebar() {
               }`
             }
           >
-            <span className="text-base">{item.icon}</span>
+            <item.Icon className="h-[18px] w-[18px]" aria-hidden="true" />
             {item.label}
           </NavLink>
         ))}

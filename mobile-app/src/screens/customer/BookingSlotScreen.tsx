@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { HomeStackParamList } from "../../navigation/CustomerNavigator";
 import { useServiceLocation } from "../../store/LocationContext";
-import { Button, Card, Chip, SectionHeader } from "../../components/ui";
+import { Button, Card, Chip, FormScreen, SectionHeader } from "../../components/ui";
 import { colors, radius, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { icons, iconSize } from "../../theme/icons";
 
 type Props = NativeStackScreenProps<HomeStackParamList, "BookingSlot">;
 
@@ -30,7 +32,7 @@ const TIME_SLOTS = ["09:00", "11:00", "13:00", "15:00", "17:00"];
 // booking twice.
 export default function BookingSlotScreen({ route, navigation }: Props) {
   const { t, i18n } = useTranslation();
-  const { serviceId, serviceName } = route.params;
+  const { serviceId, serviceName, packageId, packageName } = route.params;
   const { location } = useServiceLocation();
   const [instructions, setInstructions] = useState("");
 
@@ -66,6 +68,8 @@ export default function BookingSlotScreen({ route, navigation }: Props) {
 
     navigation.navigate("FairPricingBreakdown", {
       serviceId,
+      packageId,
+      packageName,
       scheduledAt: scheduledAt.toISOString(),
       latitude: location.latitude,
       longitude: location.longitude,
@@ -80,15 +84,16 @@ export default function BookingSlotScreen({ route, navigation }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <FormScreen contentContainerStyle={styles.container}>
       <Card style={styles.summaryCard}>
         <Text style={styles.title}>{serviceName}</Text>
-        <Text style={styles.subtitle}>Find a professional for you — no need to pick one yourself.</Text>
+        {packageName ? <Text style={styles.packageLine}>{packageName}</Text> : null}
+        <Text style={styles.subtitle}>{t("customer.dispatchNote")}</Text>
       </Card>
 
-      <SectionHeader title="Service location" />
+      <SectionHeader title={t("customer.serviceLocation")} />
       <TouchableOpacity style={styles.locationCard} onPress={() => navigation.navigate("LocationPicker")}>
-        <Text style={styles.locationIcon}>📍</Text>
+        <Ionicons name={icons.location} size={iconSize.md} color={colors.primary} style={styles.locationIcon} />
         <View style={{ flex: 1 }}>
           <Text style={styles.locationLabel}>{location?.label}</Text>
           <Text style={styles.locationLine}>{location?.line1}</Text>
@@ -120,7 +125,7 @@ export default function BookingSlotScreen({ route, navigation }: Props) {
         ))}
       </View>
 
-      <SectionHeader title="Instructions (optional)" />
+      <SectionHeader title={t("customer.instructionsOptional")} />
       <TextInput
         style={styles.instructionsInput}
         placeholder="e.g. Ring the bell twice. Parking is available near the entrance."
@@ -131,11 +136,12 @@ export default function BookingSlotScreen({ route, navigation }: Props) {
       />
 
       <Button label={t("customer.confirmBooking")} onPress={confirm} style={styles.button} />
-    </ScrollView>
+    </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
+  packageLine: { ...type.smallMedium, color: colors.primaryDark, marginBottom: spacing.md },
   container: { padding: spacing.xl, paddingBottom: spacing.xxxl },
   summaryCard: { marginBottom: spacing.xl },
   title: { ...type.h3, color: colors.textPrimary },
@@ -149,7 +155,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.md,
   },
-  locationIcon: { fontSize: 18, marginRight: spacing.sm },
+  locationIcon: { marginRight: spacing.sm },
   locationLabel: { ...type.smallMedium, color: colors.textPrimary },
   locationLine: { ...type.small, color: colors.textSecondary, marginTop: 1 },
   changeLink: { ...type.smallMedium, color: colors.primary },

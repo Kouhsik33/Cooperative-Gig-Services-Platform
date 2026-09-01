@@ -4,6 +4,14 @@ export interface ForecastEntry {
   serviceCategory: string;
   predictedBookings: number;
   recommendedWorkers: number;
+  /** How the figures were derived — shown so the recommendation is auditable, not a bare number (master prompt §24). */
+  dailyAverage?: number;
+  basis?: string;
+  /** Recent window vs the full history behind it — drives the trend copy. */
+  baselineDailyAverage?: number;
+  trendPercent?: number | null;
+  demandLevel?: "none" | "low" | "medium" | "high";
+  reason?: string;
 }
 
 export interface DemandForecastResponse {

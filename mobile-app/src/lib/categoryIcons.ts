@@ -1,16 +1,5 @@
-// Maps the backend's real seeded service categories (see
-// backend/prisma/seed.ts) to a display icon/label. Falls back gracefully
-// for any category not in this list rather than crashing.
-const CATEGORY_ICONS: Record<string, string> = {
-  electrician: "💡",
-  plumber: "🔧",
-  caregiver: "🧑‍⚕️",
-  cleaner: "🧹",
-  driver: "🚗",
-  gardener: "🌿",
-  technician: "🛠️",
-};
-
-export function iconForCategory(category: string): string {
-  return CATEGORY_ICONS[category] ?? "🧰";
-}
+// Kept as a thin re-export so existing imports keep working while the icon
+// vocabulary lives in one place (theme/icons.ts). Categories map to
+// Ionicons names, not emoji — see that file for why.
+export { iconForCategory } from "../theme/icons";
+export type { IconName } from "../theme/icons";

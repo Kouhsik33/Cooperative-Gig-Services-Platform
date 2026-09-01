@@ -6,5 +6,6 @@ import { catchAsync } from "../lib/catchAsync";
 const router = Router();
 
 router.get("/", requireAuth, catchAsync(serviceController.listServices));
+router.get("/:id", requireAuth, catchAsync(serviceController.getService));
 
 export default router;

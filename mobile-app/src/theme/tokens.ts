@@ -37,7 +37,38 @@ export const colors = {
   borderStrong: "#CBD3CE",
 
   gold: "#D9A404",
+
+  // Translucent white for overlays on a saturated background (e.g. the
+  // emergency hero card), kept here so no screen invents its own rgba().
+  overlayOnDark: "rgba(255, 255, 255, 0.15)",
+  // Skeleton placeholder fill — a neutral tint of the border colour, so
+  // loading blocks read as "content pending", not as a disabled control.
+  skeleton: "#E9ECE9",
+  skeletonHighlight: "#F3F5F2",
+
+  // --- Semantic aliases -------------------------------------------------
+  // Named by ROLE rather than by hue, so a component says what it means
+  // ("text on top of a primary surface") instead of restating the palette.
+  // Re-theming then only touches the values above.
+  primaryForeground: "#FFFFFF",
+  accent: "#C97B3D",
+  accentForeground: "#FFFFFF",
+  onPrimarySurface: "#0A4F44",
+  shadowTint: "#0A231D",
 } as const;
+
+// Deterministic avatar-placeholder palette (master prompt §44). These are
+// the theme's own hues rather than seven hand-copied hex literals, so
+// re-theming the app re-themes the avatars with it.
+export const avatarPalette = [
+  colors.primary,
+  colors.secondary,
+  colors.info,
+  colors.secondaryDark,
+  colors.textSecondary,
+  colors.warning,
+  colors.success,
+] as const;
 
 export const spacing = {
   xs: 4,
@@ -58,6 +89,15 @@ export const radius = {
   pill: 999,
 } as const;
 
+// Layout invariants that are accessibility requirements, not taste.
+export const layout = {
+  /** WCAG 2.5.5 / iOS HIG minimum tappable edge. Any bare touchable must
+   *  reach this, via size or hitSlop. */
+  minTouchTarget: 44,
+  /** Space reserved under a sticky CTA bar so content can scroll clear. */
+  stickyBarClearance: 96,
+} as const;
+
 // Golden-ratio-inspired type scale.
 export const type = {
   display: { fontSize: 34, lineHeight: 40, fontWeight: "700" as const },
@@ -69,25 +109,27 @@ export const type = {
   small: { fontSize: 13, lineHeight: 18, fontWeight: "400" as const },
   smallMedium: { fontSize: 13, lineHeight: 18, fontWeight: "600" as const },
   caption: { fontSize: 11, lineHeight: 15, fontWeight: "500" as const },
+  /** Uppercase micro-label for section eyebrows and metadata rows. */
+  label: { fontSize: 11, lineHeight: 14, fontWeight: "700" as const, letterSpacing: 0.6 },
 } as const;
 
 export const shadow = {
   sm: {
-    shadowColor: "#0A231D",
+    shadowColor: colors.shadowTint,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
     elevation: 1,
   },
   md: {
-    shadowColor: "#0A231D",
+    shadowColor: colors.shadowTint,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 3,
   },
   lg: {
-    shadowColor: "#0A231D",
+    shadowColor: colors.shadowTint,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.12,
     shadowRadius: 20,
@@ -95,5 +137,5 @@ export const shadow = {
   },
 } as const;
 
-export const theme = { colors, spacing, radius, type, shadow };
+export const theme = { colors, spacing, radius, type, shadow, avatarPalette, layout };
 export default theme;

@@ -5,6 +5,7 @@ import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { useAuth } from "../../store/AuthContext";
 import { Button, OtpInput } from "../../components/ui";
 import { colors, spacing, type } from "../../theme/tokens";
+import { useTranslation } from "react-i18next";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Otp">;
 
@@ -12,6 +13,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Otp">;
 // entirely server-side (backend/src/services/otp.service.ts) — this
 // screen never compares the entered code against anything itself.
 export default function OtpScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { phone } = route.params;
   const { verifyOtp, requestOtp, logout } = useAuth();
   const [otp, setOtp] = useState("");
@@ -31,8 +33,8 @@ export default function OtpScreen({ route, navigation }: Props) {
       if (result.user?.role === "FEDERATION_ADMIN") {
         logout();
         Alert.alert(
-          "Use the admin dashboard",
-          "Federation admins sign in at the admin-web dashboard, not the mobile app."
+          t("auth.adminOnlyTitle"),
+          t("auth.adminOnlyMessage")
         );
         navigation.popToTop();
         return;
@@ -40,7 +42,7 @@ export default function OtpScreen({ route, navigation }: Props) {
       // Successful login — RootNavigator switches to CustomerApp/WorkerApp
       // automatically once AuthContext's user state updates.
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? "Incorrect code. Please try again.");
+      setError(err?.response?.data?.error ?? t("auth.incorrectCode"));
     } finally {
       setLoading(false);
     }
@@ -51,9 +53,9 @@ export default function OtpScreen({ route, navigation }: Props) {
     setError(null);
     try {
       await requestOtp(phone);
-      Alert.alert("Code sent", `A new code has been sent to +91 ${phone}`);
+      Alert.alert(t("auth.codeSentTitle"), t("auth.codeSentMessage", { phone }));
     } catch {
-      setError("Could not resend the code. Please try again.");
+      setError(t("auth.resendError"));
     } finally {
       setResending(false);
     }
@@ -61,7 +63,7 @@ export default function OtpScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Verify your number</Text>
+      <Text style={styles.title}>{t("auth.verifyTitle")}</Text>
       <Text style={styles.subtitle}>We sent a 4-digit code to{"\n"}+91 {phone}</Text>
 
       <View style={styles.otpWrap}>
@@ -71,7 +73,7 @@ export default function OtpScreen({ route, navigation }: Props) {
       {error && <Text style={styles.error}>{error}</Text>}
 
       <Button
-        label="Verify"
+        label={t("auth.verify")}
         onPress={() => handleVerify(otp)}
         loading={loading}
         disabled={otp.length < 4}

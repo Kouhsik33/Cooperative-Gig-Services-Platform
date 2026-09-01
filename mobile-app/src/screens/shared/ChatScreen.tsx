@@ -3,6 +3,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,8 +14,9 @@ import { useAuth } from "../../store/AuthContext";
 import { listMessages, sendMessage } from "../../api/chat";
 import type { ChatMessage } from "../../api/chat";
 import { getSocket } from "../../lib/socket";
-import { LoadingState } from "../../components/ui";
+import { ErrorState, LoadingState } from "../../components/ui";
 import { colors, radius, spacing, type } from "../../theme/tokens";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   route: { params: { bookingId: string; otherPartyName: string } };
@@ -26,18 +28,29 @@ interface Props {
 // leaf screens like Invoice/Rating across the customer's Home/Bookings/
 // Emergency stacks). Real-time via the existing Socket.io connection,
 // with an initial REST fetch for history.
+const WORKER_QUICK_REPLIES = ["qrOnMyWay", "qrFiveMinutes", "qrAtLocation"];
+const CUSTOMER_QUICK_REPLIES = ["qrShareEntrance", "qrAtLocation", "qrThanks"];
+
+/** Same-sender messages within this window render as one visual group. */
+const GROUP_WINDOW_MS = 5 * 60 * 1000;
+
 export default function ChatScreen({ route }: Props) {
+  const { t } = useTranslation();
   const { bookingId, otherPartyName } = route.params;
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const listRef = useRef<FlatList>(null);
 
   const load = useCallback(async () => {
     try {
       setMessages(await listMessages(bookingId));
+      setLoadFailed(false);
+    } catch {
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -61,19 +74,31 @@ export default function ChatScreen({ route }: Props) {
     };
   }, [bookingId]);
 
-  async function handleSend() {
-    const trimmed = text.trim();
-    if (!trimmed) return;
+  async function sendText(body: string) {
+    const trimmed = body.trim();
+    if (!trimmed || sending) return;
     setSending(true);
-    setText("");
     try {
       await sendMessage(bookingId, trimmed);
+    } catch {
+      // Restore the draft so a failed send doesn't silently lose what the
+      // user typed.
+      setText((current) => current || trimmed);
     } finally {
       setSending(false);
     }
   }
 
+  async function handleSend() {
+    const draft = text;
+    setText("");
+    await sendText(draft);
+  }
+
   if (loading) return <LoadingState />;
+  if (loadFailed) {
+    return <ErrorState message={t("common.chatLoadFailed")} onRetry={load} retryLabel={t("common.retry")} />;
+  }
 
   return (
     <KeyboardAvoidingView
@@ -90,28 +115,58 @@ export default function ChatScreen({ route }: Props) {
         keyExtractor={(m) => m.id}
         contentContainerStyle={styles.list}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const isMine = item.senderId === user?.id;
+          const prev = messages[index - 1];
+          const grouped =
+            !!prev &&
+            prev.senderId === item.senderId &&
+            new Date(item.createdAt).getTime() - new Date(prev.createdAt).getTime() < GROUP_WINDOW_MS;
           return (
-            <View style={[styles.bubbleRow, isMine && styles.bubbleRowMine]}>
+            <View style={[styles.bubbleRow, isMine && styles.bubbleRowMine, grouped && styles.bubbleRowGrouped]}>
               <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
                 <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.text}</Text>
+                <Text style={[styles.bubbleTime, isMine && styles.bubbleTimeMine]}>
+                  {new Date(item.createdAt).toLocaleTimeString(undefined, {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
               </View>
             </View>
           );
         }}
       />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.quickRow}
+        keyboardShouldPersistTaps="handled"
+      >
+        {(user?.role === "WORKER" ? WORKER_QUICK_REPLIES : CUSTOMER_QUICK_REPLIES).map((key) => (
+          <TouchableOpacity
+            key={key}
+            style={styles.quickChip}
+            onPress={() => sendText(t(`chat.${key}`))}
+            disabled={sending}
+            accessibilityRole="button"
+          >
+            <Text style={styles.quickChipText}>{t(`chat.${key}`)}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
-          placeholder="Message..."
+          placeholder={t("chat.placeholder")}
           placeholderTextColor={colors.textMuted}
           value={text}
           onChangeText={setText}
           multiline
         />
         <TouchableOpacity style={styles.sendButton} onPress={handleSend} disabled={sending}>
-          <Text style={styles.sendButtonText}>Send</Text>
+          <Text style={styles.sendButtonText}>{t("chat.send")}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -128,6 +183,20 @@ const styles = StyleSheet.create({
   },
   headerName: { ...type.h3, color: colors.textPrimary },
   list: { padding: spacing.lg },
+  quickRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm },
+  quickChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    marginRight: spacing.sm,
+  },
+  quickChipText: { ...type.small, color: colors.primaryDark },
+  bubbleTime: { ...type.caption, color: colors.textMuted, marginTop: 2, alignSelf: "flex-end" },
+  bubbleTimeMine: { color: colors.primaryLight },
+  bubbleRowGrouped: { marginTop: 2 },
   bubbleRow: { flexDirection: "row", marginBottom: spacing.sm },
   bubbleRowMine: { justifyContent: "flex-end" },
   bubble: { maxWidth: "78%", borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },

@@ -37,6 +37,13 @@ export function initSocket(httpServer: HttpServer): SocketIOServer {
   io.on("connection", async (socket: Socket) => {
     const user = socket.data.user as { id: string; role: string };
 
+    // Every socket joins a room keyed by its own User id, regardless of
+    // role. The role rooms below address someone by what they are *for
+    // this booking*; this one addresses a person. Notifications (§19) are
+    // per-person, so they need an address that doesn't depend on which
+    // side of a booking the recipient happens to be on.
+    socket.join(`user:${user.id}`);
+
     if (user.role === "WORKER") {
       const worker = await prisma.worker.findUnique({ where: { userId: user.id } });
       if (worker) socket.join(`worker:${worker.id}`);

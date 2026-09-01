@@ -3,6 +3,7 @@ import { getFederationWorkers, verifyWorker } from "../api/federations";
 import { useAuth } from "../store/AuthContext";
 import StatusBadge from "../components/StatusBadge";
 import EmptyState from "../components/EmptyState";
+import { Inbox, ShieldCheck } from "lucide-react";
 
 // Federation Admin journey (Part B) — Requirement 1. Card-based
 // approve/reject review with skill/certification detail (master prompt
@@ -50,7 +51,7 @@ export default function WorkerVerificationQueue() {
 
       <section className="mb-10">
         <h2 className="mb-3 text-lg font-medium text-ink">Pending review ({pending.length})</h2>
-        {pending.length === 0 && <EmptyState icon="✅" title="No workers awaiting review." />}
+        {pending.length === 0 && <EmptyState Icon={ShieldCheck} title="No workers awaiting review." />}
         <div className="space-y-3">
           {pending.map((w) => (
             <div
@@ -104,9 +105,10 @@ export default function WorkerVerificationQueue() {
       <section>
         <h2 className="mb-3 text-lg font-medium text-ink">Already reviewed ({reviewed.length})</h2>
         {reviewed.length === 0 ? (
-          <EmptyState icon="🗂️" title="No workers reviewed yet." />
+          <EmptyState Icon={Inbox} title="No workers reviewed yet." />
         ) : (
-          <table className="w-full rounded-card border border-ink/10 bg-surface text-left text-sm shadow-card">
+          <div className="overflow-x-auto">
+        <table className="w-full rounded-card border border-ink/10 bg-surface text-left text-sm shadow-card min-w-[720px]">
             <thead>
               <tr className="border-b border-ink/10 text-ink-muted">
                 <th className="px-4 py-3">Name</th>
@@ -128,6 +130,7 @@ export default function WorkerVerificationQueue() {
               ))}
             </tbody>
           </table>
+        </div>
         )}
       </section>
     </div>

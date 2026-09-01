@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import crypto from "crypto";
 import Razorpay from "razorpay";
 import { prisma } from "../lib/prisma";
+import { notify } from "../services/notification.service";
+import { formatMoney } from "../lib/money";
 import { env } from "../config/env";
 
 // Payments — Part E, Requirements 5, 12. Razorpay test mode.
@@ -94,7 +96,10 @@ type CaptureResult = "not_found" | "already_paid" | "captured";
 // booking.controller.ts), not by payment success. A paid booking that
 // never gets marked COMPLETED never credits welfare.
 async function capturePayment(orderId: string): Promise<CaptureResult> {
-  const payment = await prisma.payment.findFirst({ where: { razorpayId: orderId } });
+  const payment = await prisma.payment.findFirst({
+    where: { razorpayId: orderId },
+    include: { booking: { include: { service: true } } },
+  });
   if (!payment) return "not_found";
   if (payment.status === "paid") return "already_paid";
 
@@ -102,6 +107,19 @@ async function capturePayment(orderId: string): Promise<CaptureResult> {
     where: { id: payment.id },
     data: { status: "paid", paidAt: new Date() },
   });
+
+  // Notified here rather than at the call sites, so a real webhook and the
+  // demo simulate-callback produce identical side effects — the whole
+  // reason both funnel through this one function. Guarded by the
+  // already_paid check above, so a replayed webhook can't double-notify.
+  await notify({
+    userId: payment.booking.customerId,
+    type: "PAYMENT_RECEIVED",
+    bookingId: payment.bookingId,
+    title: `Payment of ${formatMoney(payment.booking.totalAmount)} received`,
+    body: `Your ${payment.booking.service.name} is paid for. ${formatMoney(payment.booking.workerShare)} goes to your professional.`,
+  });
+
   return "captured";
 }
 
@@ -193,6 +211,7 @@ export async function getInvoice(req: Request, res: Response) {
     where: { id: req.params.bookingId },
     include: {
       service: true,
+      servicePackage: true,
       worker: { include: { user: { select: { id: true, name: true } } } },
       customer: { select: { id: true, name: true, phone: true } },
       payment: true,
@@ -213,9 +232,15 @@ export async function getInvoice(req: Request, res: Response) {
     customer: booking.customer,
     worker: { id: booking.worker.id, name: booking.worker.user.name },
     service: { name: booking.service.name, category: booking.service.category },
+    servicePackage: booking.servicePackage
+      ? { name: booking.servicePackage.name, description: booking.servicePackage.description }
+      : null,
     isEmergency: booking.isEmergency,
     lineItems: {
-      basePrice: booking.service.basePrice,
+      // Derived from the booking's own recorded amounts, not re-read from
+      // the service or package. Those can be re-priced later; an invoice
+      // must always restate what was actually charged at the time.
+      basePrice: Math.round((booking.totalAmount - booking.emergencyBonus) * 100) / 100,
       emergencyBonus: booking.emergencyBonus,
       totalAmount: booking.totalAmount,
       workerShare: booking.workerShare,

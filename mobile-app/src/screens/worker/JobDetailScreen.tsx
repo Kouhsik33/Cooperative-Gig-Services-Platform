@@ -16,15 +16,33 @@ import {
   Avatar,
   Badge,
   Button,
+  BookingTimeline,
   Card,
-  LoadingState,
+  ErrorState,
+  MapPanel,
+  SkeletonList,
   OtpInput,
   PriceBreakdown,
   StatusBadge,
+  TIMELINE_ORDER,
+  timelineIndexFor,
 } from "../../components/ui";
 import { colors, radius, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { icons, iconSize } from "../../theme/icons";
 
 type Props = NativeStackScreenProps<WorkerStackParamList, "JobDetail">;
+
+// Same canonical order as the customer's tracking screen, worded from the
+// worker's side — the two can no longer disagree about where a booking is.
+const WORKER_TIMELINE_LABELS: Record<string, string> = {
+  REQUESTED: "tracking.bookingConfirmed",
+  ASSIGNED: "tracking.timelineAssigned",
+  ON_THE_WAY: "tracking.timelineOnTheWay",
+  ARRIVED: "tracking.timelineArrived",
+  IN_PROGRESS: "tracking.timelineInProgress",
+  COMPLETED: "tracking.timelineCompleted",
+};
 
 // The worker's whole job lifecycle lives on this one screen (product-flow
 // update §17-21, §28), switching what it shows by booking.status rather
@@ -39,10 +57,16 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   const [acting, setActing] = useState(false);
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setBooking(await getBookingById(bookingId));
+      setLoadFailed(false);
+    } catch {
+      // Previously uncaught: the rejection was unhandled and the screen
+      // fell through to a permanent spinner.
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -69,7 +93,7 @@ export default function JobDetailScreen({ route, navigation }: Props) {
     try {
       setBooking(await updateBookingStatus(bookingId, status));
     } catch {
-      Alert.alert("Could not update this job. Please try again.");
+      Alert.alert(t("workerJob.updateError"));
     } finally {
       setActing(false);
     }
@@ -80,7 +104,7 @@ export default function JobDetailScreen({ route, navigation }: Props) {
     try {
       setBooking(await requestCompletion(bookingId));
     } catch {
-      Alert.alert("Could not complete this job. Please try again.");
+      Alert.alert(t("workerJob.completeError"));
     } finally {
       setActing(false);
     }
@@ -104,7 +128,10 @@ export default function JobDetailScreen({ route, navigation }: Props) {
     Linking.openURL(`tel:${booking.customer.phone}`);
   }
 
-  if (loading || !booking) return <LoadingState />;
+  if (loading) return <SkeletonList count={3} variant="row" />;
+  if (loadFailed || !booking) {
+    return <ErrorState message={t("common.jobLoadFailed")} onRetry={load} retryLabel={t("common.retry")} />;
+  }
 
   const money = (n: number) => formatCurrency(n, i18n.language);
   // This screen is only ever reached for a booking already assigned to
@@ -120,7 +147,7 @@ export default function JobDetailScreen({ route, navigation }: Props) {
       <View style={styles.header}>
         <Text style={styles.serviceName}>
           {booking.service.name}
-          {booking.isEmergency && <Badge label="EMERGENCY" tone="error" />}
+          {booking.isEmergency && <Badge label={t("workerJob.emergency")} tone="error" />}
         </Text>
         <StatusBadge status={booking.status} />
       </View>
@@ -128,7 +155,7 @@ export default function JobDetailScreen({ route, navigation }: Props) {
 
       {address ? (
         <Card style={styles.addressCard}>
-          <Text style={styles.addressTitle}>Customer location</Text>
+          <Text style={styles.addressTitle}>{t("workerJob.customerLocation")}</Text>
           <Text style={styles.addressLine}>{address}</Text>
           {booking.instructions && (
             <Text style={styles.instructions}>"{booking.instructions}"</Text>
@@ -140,36 +167,61 @@ export default function JobDetailScreen({ route, navigation }: Props) {
         <Avatar name={booking.customer?.name ?? "Customer"} size={40} />
         <View style={styles.contactText}>
           <Text style={styles.contactName}>{booking.customer?.name}</Text>
-          <Text style={styles.contactSub}>Customer</Text>
+          <Text style={styles.contactSub}>{t("workerJob.customer")}</Text>
         </View>
-        <Button label="📞 Call" variant="outline" onPress={callCustomer} style={styles.contactButton} />
+        <Button label={t("tracking.callProfessional")} variant="outline" onPress={callCustomer} style={styles.contactButton} />
         <Button
-          label="💬 Chat"
+          label={t("tracking.chat")}
           variant="outline"
           onPress={() => navigation.navigate("Chat", { bookingId, otherPartyName: booking.customer?.name ?? "Customer" })}
           style={styles.contactButton}
         />
       </View>
 
-      {booking.status === "ASSIGNED" && (
-        <DemoMap label="Route to customer" />
+      {["ASSIGNED", "ON_THE_WAY"].includes(booking.status) && (
+        <MapPanel
+          statusLabel={t("workerHome.navigateTo")}
+          liveUnavailableLabel={t("tracking.mapNotLive")}
+          origin={{ latitude: 0, longitude: 0, label: t("workerHome.yourStart") }}
+          destination={{
+            latitude: booking.latitude ?? 0,
+            longitude: booking.longitude ?? 0,
+            label: booking.serviceAddressLine ?? t("workerHome.customerLocation"),
+          }}
+        />
       )}
-      {booking.status === "ON_THE_WAY" && <DemoMap label="On the way to customer" active />}
+
+      <Card style={styles.timelineCard}>
+        <Text style={styles.timelineTitle}>{t("workerHome.jobProgress")}</Text>
+        <BookingTimeline
+          currentIndex={timelineIndexFor(booking.status)}
+          steps={TIMELINE_ORDER.map((key) => ({
+            key,
+            label: t(WORKER_TIMELINE_LABELS[key]),
+            detail:
+              key === "IN_PROGRESS" && booking.serviceStartedAt
+                ? formatDateTime(booking.serviceStartedAt, i18n.language)
+                : key === "COMPLETED" && booking.serviceCompletedAt
+                ? formatDateTime(booking.serviceCompletedAt, i18n.language)
+                : null,
+          }))}
+        />
+      </Card>
 
       <Card style={styles.actionCard}>
         {booking.status === "ASSIGNED" && (
-          <Button label="Start navigating" onPress={() => transition("ON_THE_WAY")} loading={acting} />
+          <Button label={t("workerJob.startNavigating")} onPress={() => transition("ON_THE_WAY")} loading={acting} />
         )}
         {booking.status === "ON_THE_WAY" && (
-          <Button label="I've arrived" onPress={() => transition("ARRIVED")} loading={acting} />
+          <Button label={t("workerJob.iveArrived")} onPress={() => transition("ARRIVED")} loading={acting} />
         )}
         {booking.status === "ARRIVED" && (
           <View>
-            <Text style={styles.otpPrompt}>Ask the customer for the 4-digit service start OTP.</Text>
+            <Text style={styles.otpPrompt}>{t("workerJob.askStartOtp")}</Text>
             <OtpInput value={otp} onChange={setOtp} />
             {otpError && <Text style={styles.otpError}>{otpError}</Text>}
             <Button
-              label="Start service"
+              label={t("workerJob.startService")}
               onPress={() => handleVerifyOtp("SERVICE_START")}
               loading={acting}
               disabled={otp.length < 4}
@@ -180,18 +232,22 @@ export default function JobDetailScreen({ route, navigation }: Props) {
         {booking.status === "IN_PROGRESS" && (
           <View>
             <Text style={styles.inProgressText}>
-              Started {booking.serviceStartedAt ? formatDateTime(booking.serviceStartedAt, i18n.language) : ""}
+              {t("workerJob.startedAt", {
+                time: booking.serviceStartedAt
+                  ? formatDateTime(booking.serviceStartedAt, i18n.language)
+                  : "",
+              })}
             </Text>
-            <Button label="Complete service" onPress={handleRequestCompletion} loading={acting} />
+            <Button label={t("workerJob.completeService")} onPress={handleRequestCompletion} loading={acting} />
           </View>
         )}
         {booking.status === "COMPLETION_PENDING" && (
           <View>
-            <Text style={styles.otpPrompt}>Ask the customer for the 4-digit completion OTP.</Text>
+            <Text style={styles.otpPrompt}>{t("workerJob.askCompletionOtp")}</Text>
             <OtpInput value={otp} onChange={setOtp} />
             {otpError && <Text style={styles.otpError}>{otpError}</Text>}
             <Button
-              label="Complete service"
+              label={t("workerJob.completeService")}
               onPress={() => handleVerifyOtp("SERVICE_COMPLETION")}
               loading={acting}
               disabled={otp.length < 4}
@@ -202,8 +258,11 @@ export default function JobDetailScreen({ route, navigation }: Props) {
         {booking.status === "COMPLETED" && (
           <View>
             <Text style={styles.completedText}>
-              ✓ Completed{" "}
-              {booking.serviceCompletedAt ? formatDateTime(booking.serviceCompletedAt, i18n.language) : ""}
+              {t("tracking.completedAt", {
+                time: booking.serviceCompletedAt
+                  ? formatDateTime(booking.serviceCompletedAt, i18n.language)
+                  : "",
+              })}
             </Text>
             <PriceBreakdown
               compact
@@ -232,25 +291,13 @@ export default function JobDetailScreen({ route, navigation }: Props) {
 
       {["ASSIGNED", "ON_THE_WAY", "ARRIVED"].includes(booking.status) && (
         <Button
-          label="Cancel job"
+          label={t("workerJob.cancelJob")}
           variant="outline"
           onPress={() => transition("CANCELLED")}
           style={styles.cancelButton}
         />
       )}
     </ScrollView>
-  );
-}
-
-function DemoMap({ label, active }: { label: string; active?: boolean }) {
-  return (
-    <View style={styles.mapBox}>
-      <Text style={styles.mapPin}>📍</Text>
-      <Text style={styles.mapLabel}>{label}</Text>
-      <Text style={styles.mapCaption}>
-        {active ? "Live GPS tracking isn't wired up in this demo" : "Navigation preview"}
-      </Text>
-    </View>
   );
 }
 
@@ -268,18 +315,9 @@ const styles = StyleSheet.create({
   contactName: { ...type.bodyMedium, color: colors.textPrimary },
   contactSub: { ...type.caption, color: colors.textMuted },
   contactButton: { paddingHorizontal: spacing.md, marginLeft: spacing.sm },
-  mapBox: {
-    height: 140,
-    borderRadius: radius.lg,
-    backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.lg,
-  },
-  mapPin: { fontSize: 28, marginBottom: spacing.xs },
-  mapLabel: { ...type.bodyMedium, color: colors.primaryDark },
-  mapCaption: { ...type.caption, color: colors.primaryDark, marginTop: 2 },
   actionCard: { marginBottom: spacing.lg },
+  timelineCard: { marginBottom: spacing.lg },
+  timelineTitle: { ...type.h3, color: colors.textPrimary, marginBottom: spacing.md },
   otpPrompt: { ...type.body, color: colors.textSecondary, marginBottom: spacing.lg, textAlign: "center" },
   otpError: { ...type.small, color: colors.error, textAlign: "center", marginTop: spacing.md },
   otpButton: { marginTop: spacing.lg },

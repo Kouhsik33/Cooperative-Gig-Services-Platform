@@ -1,20 +1,28 @@
 import { useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { HomeStackParamList } from "../../navigation/CustomerNavigator";
 import { useServiceLocation, addressToLocation, DEMO_SERVICE_LOCATION } from "../../store/LocationContext";
 import { EmptyState } from "../../components/ui";
 import { colors, radius, spacing, type } from "../../theme/tokens";
+import { icons, iconSize, type IconName } from "../../theme/icons";
+import { Ionicons } from "@expo/vector-icons";
 
 type Props = NativeStackScreenProps<HomeStackParamList, "LocationPicker">;
 
-const LABEL_ICON: Record<string, string> = { Home: "🏠", Work: "🏢", Office: "🏢" };
+const LABEL_ICON: Record<string, IconName> = {
+  Home: icons.home,
+  Work: icons.work,
+  Office: icons.work,
+};
 
 // Rapido/Swiggy-style location selection (product-flow update §5-9).
 // "Use current location" gracefully falls back to the documented demo
 // location rather than pretending real GPS works — this environment has
 // no expo-location wired in (see DEMO_LOCATION's own comment).
 export default function LocationPickerScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { addresses, loadingAddresses, setLocation } = useServiceLocation();
   const [usingCurrent, setUsingCurrent] = useState(false);
 
@@ -29,29 +37,32 @@ export default function LocationPickerScreen({ navigation }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Choose service location</Text>
+      <Text style={styles.title}>{t("locationPicker.title")}</Text>
 
       <TouchableOpacity style={styles.currentButton} onPress={selectDemoLocation} disabled={usingCurrent}>
         {usingCurrent ? (
           <ActivityIndicator color={colors.primary} />
         ) : (
           <>
-            <Text style={styles.currentIcon}>📍</Text>
+            <Ionicons name={icons.locationFilled} size={iconSize.lg} color={colors.primary} style={styles.currentIcon} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.currentLabel}>Use current location</Text>
-              <Text style={styles.currentSub}>
-                Real GPS isn't available in this demo — uses the seeded Pune service area
-              </Text>
+              <Text style={styles.currentLabel}>{t("locationPicker.useCurrentLocation")}</Text>
+<Text style={styles.currentSub}>{t("locationPicker.demoGpsNote")}</Text>
             </View>
           </>
         )}
       </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>Saved addresses</Text>
+      <Text style={styles.sectionTitle}>{t("locationPicker.savedAddresses")}</Text>
       {loadingAddresses ? (
         <ActivityIndicator color={colors.primary} />
       ) : addresses.length === 0 ? (
-        <EmptyState icon="📭" title="No saved addresses yet" />
+        <EmptyState
+          icon={icons.location}
+          title={t("locationPicker.noSavedAddresses")}
+          actionLabel={t("common.addressEmptyCta")}
+          onAction={() => navigation.navigate("AddAddress")}
+        />
       ) : (
         addresses.map((address) => (
           <TouchableOpacity
@@ -62,7 +73,12 @@ export default function LocationPickerScreen({ navigation }: Props) {
               navigation.goBack();
             }}
           >
-            <Text style={styles.addressIcon}>{LABEL_ICON[address.label] ?? "📍"}</Text>
+            <Ionicons
+              name={LABEL_ICON[address.label] ?? icons.addressOther}
+              size={iconSize.md}
+              color={colors.textSecondary}
+              style={styles.addressIcon}
+            />
             <View style={{ flex: 1 }}>
               <Text style={styles.addressLabel}>{address.label}</Text>
               <Text style={styles.addressLine}>
@@ -76,7 +92,7 @@ export default function LocationPickerScreen({ navigation }: Props) {
       )}
 
       <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate("AddAddress")}>
-        <Text style={styles.addButtonText}>+ Add new address</Text>
+        <Text style={styles.addButtonText}>+ {t("locationPicker.addAddress")}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -93,7 +109,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.xl,
   },
-  currentIcon: { fontSize: 22, marginRight: spacing.md },
+  currentIcon: { marginRight: spacing.md },
   currentLabel: { ...type.bodyMedium, color: colors.primaryDark },
   currentSub: { ...type.caption, color: colors.primaryDark, marginTop: 2 },
   sectionTitle: { ...type.h3, color: colors.textPrimary, marginBottom: spacing.md },
@@ -106,7 +122,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.md,
   },
-  addressIcon: { fontSize: 20, marginRight: spacing.md },
+  addressIcon: { marginRight: spacing.md },
   addressLabel: { ...type.bodyMedium, color: colors.textPrimary },
   addressLine: { ...type.small, color: colors.textSecondary, marginTop: 2 },
   addressPincode: { ...type.caption, color: colors.textMuted, marginTop: 2 },

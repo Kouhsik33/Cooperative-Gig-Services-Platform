@@ -6,6 +6,7 @@ import type { Booking } from "../../api/types";
 import { formatCurrency, formatDateTime } from "../../lib/format";
 import { Card, EmptyState, ErrorState, LoadingState, PriceBreakdown, WelfareCard } from "../../components/ui";
 import { colors, spacing, type } from "../../theme/tokens";
+import { icons } from "../../theme/icons";
 
 // Worker Earnings tab (Part B) — Requirement 12. Running total + per-job
 // breakdown, sharing PriceBreakdown with the customer's Fair Pricing
@@ -60,7 +61,7 @@ export default function EarningsScreen() {
           <Text style={styles.sectionTitle}>{t("earnings.jobHistory")}</Text>
         </View>
       }
-      ListEmptyComponent={<EmptyState icon="💼" title={t("earnings.noJobs")} />}
+      ListEmptyComponent={<EmptyState icon={icons.package} title={t("earnings.noJobs")} />}
       renderItem={({ item }) => (
         <Card style={styles.card}>
           <Text style={styles.serviceName}>{item.service.name}</Text>

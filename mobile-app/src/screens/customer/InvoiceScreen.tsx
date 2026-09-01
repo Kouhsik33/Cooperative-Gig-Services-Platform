@@ -9,6 +9,8 @@ import { formatDateTime } from "../../lib/format";
 import { formatCurrency } from "../../lib/format";
 import { Card, ErrorState, LoadingState, PriceBreakdown, StatusBadge } from "../../components/ui";
 import { colors, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { icons, iconSize } from "../../theme/icons";
 
 type Props = NativeStackScreenProps<HomeStackParamList, "Invoice">;
 
@@ -41,7 +43,12 @@ export default function InvoiceScreen({ route }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.successIconWrap}>
-        <Text style={styles.successIcon}>{isPaid ? "✅" : "🧾"}</Text>
+        <Ionicons
+        name={isPaid ? icons.verified : icons.invoice}
+        size={iconSize.hero}
+        color={isPaid ? colors.success : colors.textSecondary}
+        style={styles.successIcon}
+      />
       </View>
       <Text style={styles.title}>{isPaid ? "Booking confirmed" : t("invoice.titlePrefix")}</Text>
       <Text style={styles.subtitle}>

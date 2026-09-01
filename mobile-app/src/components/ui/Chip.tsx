@@ -25,6 +25,8 @@ export default function Chip({ label, selected, onPress, disabled }: Props) {
 
 const styles = StyleSheet.create({
   chip: {
+    minHeight: 36,
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

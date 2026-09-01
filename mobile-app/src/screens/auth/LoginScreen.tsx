@@ -7,6 +7,8 @@ import { useAuth } from "../../store/AuthContext";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import { Button } from "../../components/ui";
 import { colors, radius, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { icons, iconSize } from "../../theme/icons";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
@@ -21,7 +23,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   async function handleContinue() {
     if (phone.trim().length < 6) {
-      Alert.alert("Enter a valid mobile number");
+      Alert.alert(t("auth.invalidPhone"));
       return;
     }
     setLoading(true);
@@ -29,7 +31,7 @@ export default function LoginScreen({ navigation }: Props) {
       await requestOtp(phone.trim());
       navigation.navigate("Otp", { phone: phone.trim() });
     } catch {
-      Alert.alert("Could not send a code right now. Please try again.");
+      Alert.alert(t("auth.otpSendError"));
     } finally {
       setLoading(false);
     }
@@ -39,17 +41,19 @@ export default function LoginScreen({ navigation }: Props) {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.brand}>
-          <Text style={styles.logo}>🤝</Text>
+          <View style={styles.logo}>
+        <Ionicons name="people" size={iconSize.xl} color={colors.primaryForeground} />
+      </View>
           <Text style={styles.title}>{t("common.appName")}</Text>
-          <Text style={styles.tagline}>Fair wages. Worker welfare. Consumer trust.</Text>
+          <Text style={styles.tagline}>{t("auth.tagline")}</Text>
         </View>
 
         <View style={styles.switcher}>
           <LanguageSwitcher />
         </View>
 
-        <Text style={styles.welcome}>Welcome back</Text>
-        <Text style={styles.label}>Mobile number</Text>
+        <Text style={styles.welcome}>{t("auth.welcomeBack")}</Text>
+        <Text style={styles.label}>{t("auth.mobileNumber")}</Text>
         <View style={styles.phoneRow}>
           <View style={styles.countryCode}>
             <Text style={styles.countryCodeText}>+91</Text>
@@ -66,10 +70,10 @@ export default function LoginScreen({ navigation }: Props) {
           />
         </View>
 
-        <Button label="Continue" onPress={handleContinue} loading={loading} style={styles.button} />
+        <Button label={t("auth.continue")} onPress={handleContinue} loading={loading} style={styles.button} />
 
         <Text style={styles.demoHint}>
-          Demo number 9000000201 always receives the code 0000.
+          {t("auth.demoHint")}
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>

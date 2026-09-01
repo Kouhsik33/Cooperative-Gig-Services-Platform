@@ -8,7 +8,6 @@ const router = Router();
 router.use(requireAuth);
 
 router.post("/", catchAsync(workerController.createWorker));
-router.get("/nearby", catchAsync(workerController.getNearbyWorkers));
 router.get("/:id", catchAsync(workerController.getWorker));
 router.patch("/:id/verify", catchAsync(workerController.verifyWorker));
 router.patch("/:id/location", catchAsync(workerController.updateWorkerLocation));

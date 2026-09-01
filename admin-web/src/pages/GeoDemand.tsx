@@ -3,6 +3,7 @@ import { getGeoDemand } from "../api/federations";
 import { useAuth } from "../store/AuthContext";
 import ChartCard from "../components/ChartCard";
 import EmptyState from "../components/EmptyState";
+import { Map } from "lucide-react";
 
 const DEMAND_LEVEL = (demand: number, max: number): { label: string; className: string } => {
   if (max === 0) return { label: "No data", className: "bg-gray-100 text-gray-600" };
@@ -39,9 +40,10 @@ export default function GeoDemand() {
         {isLoading || !data ? (
           <p className="text-ink-muted">Loading...</p>
         ) : data.length === 0 ? (
-          <EmptyState icon="🗺️" title="No pincode data yet — societies need a pincode assigned." />
+          <EmptyState Icon={Map} title="No pincode data yet — societies need a pincode assigned." />
         ) : (
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm min-w-[720px]">
             <thead>
               <tr className="border-b border-ink/10 text-ink-muted">
                 <th className="py-2">Pincode</th>
@@ -69,6 +71,7 @@ export default function GeoDemand() {
               })}
             </tbody>
           </table>
+        </div>
         )}
       </ChartCard>
     </div>

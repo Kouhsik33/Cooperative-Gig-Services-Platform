@@ -6,6 +6,8 @@ import { Booking, BookingStatus } from "./types";
 // broadcasts it to every eligible worker and the first to accept wins.
 export interface CreateBookingPayload {
   serviceId: string;
+  /** Chosen tier. The server resolves price from it — the app never sends money. */
+  packageId?: string;
   scheduledAt: string;
   latitude: number;
   longitude: number;
@@ -57,6 +59,12 @@ export async function getBookingById(bookingId: string): Promise<Booking> {
 // A customer's still-REQUESTED booking that hasn't found a worker yet —
 // re-broadcasts to whoever is eligible right now (product-flow update
 // §48's "Keep searching").
+// Server-side decline (V3). Removes this request from THIS worker's feed
+// permanently; the booking stays open for everyone else.
+export async function declineBooking(bookingId: string, reason?: string): Promise<void> {
+  await apiClient.post(`/bookings/${bookingId}/decline`, reason ? { reason } : {});
+}
+
 export async function redispatchBooking(bookingId: string): Promise<Booking> {
   const { data } = await apiClient.post<Booking>(`/bookings/${bookingId}/redispatch`);
   return data;
@@ -71,6 +79,12 @@ export interface IncomingRequest {
   emergencyBonus: number;
   servicePincode: string | null;
   distanceKm: number | null;
+  packageName?: string | null;
+  /** 0-100 match quality from matching.service.ts — drives feed ordering. */
+  matchScore?: number;
+  inYourArea?: boolean;
+  durationMinMinutes?: number | null;
+  durationMaxMinutes?: number | null;
 }
 
 // Worker-only — broadcast requests eligible for this worker right now

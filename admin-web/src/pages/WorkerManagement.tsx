@@ -4,6 +4,7 @@ import { getFederationWorkers } from "../api/federations";
 import { useAuth } from "../store/AuthContext";
 import StatusBadge from "../components/StatusBadge";
 import EmptyState from "../components/EmptyState";
+import { Users } from "lucide-react";
 
 // Federation admin's full worker roster — distinct from the Worker
 // Verification Queue (which is an action-oriented approve/reject queue).
@@ -72,9 +73,10 @@ export default function WorkerManagement() {
       {isLoading ? (
         <p className="text-ink-muted">Loading...</p>
       ) : filtered.length === 0 ? (
-        <EmptyState icon="👷" title="No workers match these filters." />
+        <EmptyState Icon={Users} title="No workers match these filters." />
       ) : (
-        <table className="w-full rounded-card border border-ink/10 bg-surface text-left text-sm shadow-card">
+        <div className="overflow-x-auto">
+        <table className="w-full rounded-card border border-ink/10 bg-surface text-left text-sm shadow-card min-w-[720px]">
           <thead>
             <tr className="border-b border-ink/10 text-ink-muted">
               <th className="px-4 py-3">Name</th>
@@ -114,6 +116,7 @@ export default function WorkerManagement() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

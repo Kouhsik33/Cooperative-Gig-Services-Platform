@@ -37,6 +37,8 @@ model Society {
   // admin's geo-spatial "demand by area" view (Requirement 4/34) without
   // modeling full multi-pincode coverage areas.
   pincode      String?
+
+  @@index([pincode])
 }
 
 model User {
@@ -57,6 +59,7 @@ model User {
   federation         Federation?       @relation(fields: [federationId], references: [id])
   bookingsAsCustomer Booking[]         @relation("CustomerBookings")
   addresses          CustomerAddress[]
+  notifications      Notification[]
 }
 
 // Saved, reusable addresses (master prompt §8 — "profile address = reusable
@@ -78,6 +81,8 @@ model CustomerAddress {
   contactPhone String?
   isDefault    Boolean  @default(false)
   createdAt    DateTime @default(now())
+
+  @@index([customerId])
 }
 
 enum Role {
@@ -105,6 +110,12 @@ model Worker {
   availability       WorkerAvailability       @default(AVAILABLE)
   bookings           Booking[]
   welfareTx          WelfareFundTransaction[]
+  responses          BookingWorkerResponse[]
+
+  // The dispatch candidate query (matching.service.ts's loadCandidates)
+  // filters on precisely this pair before any location work happens.
+  @@index([verificationStatus, availability])
+  @@index([societyId])
 }
 
 enum WorkerAvailability {
@@ -126,22 +137,69 @@ model Service {
   category  String
   basePrice Float
   bookings  Booking[]
+
+  // Service-detail content (master prompt §12 — "a service should feel
+  // like a product detail page"). Nullable/empty-by-default so existing
+  // rows stay valid; the detail screen falls back gracefully rather than
+  // rendering an empty section.
+  description        String?
+  /// Typical on-site duration, shown as a range ("60-90 minutes").
+  durationMinMinutes Int?
+  durationMaxMinutes Int?
+  inclusions         String[]
+  exclusions         String[]
+  packages           ServicePackage[]
+
+  @@index([category])
+}
+
+// Service packages (V3) — a service is offered at several tiers, the way a
+// real service marketplace sells it.
+//
+// Price lives here rather than on Booking's own columns because the wage
+// split must be computed from ONE authoritative number: whichever package
+// the customer picked. `Service.basePrice` remains the "starting from"
+// figure for the catalog and the fallback for a booking with no package
+// (every historical row), so nothing existing breaks.
+model ServicePackage {
+  id                 String    @id @default(uuid())
+  serviceId          String
+  service            Service   @relation(fields: [serviceId], references: [id])
+  name               String
+  /// Display order, low to high. Also decides which tier reads as "recommended".
+  tier               Int
+  description        String
+  price              Float
+  durationMinMinutes Int
+  durationMaxMinutes Int
+  inclusions         String[]
+  /// Pre-selected on the detail screen; exactly one per service by convention.
+  isDefault          Boolean   @default(false)
+  bookings           Booking[]
+
+  @@unique([serviceId, name])
+  @@index([serviceId, tier])
 }
 
 model Booking {
-  id                  String        @id @default(uuid())
+  id                  String          @id @default(uuid())
   customerId          String
-  customer            User          @relation("CustomerBookings", fields: [customerId], references: [id])
+  customer            User            @relation("CustomerBookings", fields: [customerId], references: [id])
   // Nullable — the dispatch model (customer books a SERVICE, not a
   // worker): a booking starts with no worker at all, broadcast to every
   // eligible worker, and workerId is only ever set by the atomic
   // first-accept-wins claim in booking.controller.ts's acceptBooking.
   workerId            String?
-  worker              Worker?       @relation(fields: [workerId], references: [id])
+  worker              Worker?         @relation(fields: [workerId], references: [id])
   serviceId           String
-  service             Service       @relation(fields: [serviceId], references: [id])
-  status              BookingStatus @default(REQUESTED)
-  isEmergency         Boolean       @default(false)
+  service             Service         @relation(fields: [serviceId], references: [id])
+  // Nullable: every booking made before packages existed has none, and the
+  // pricing path falls back to Service.basePrice for those. Never used to
+  // recompute a past booking — the split columns below are the record.
+  packageId           String?
+  servicePackage      ServicePackage? @relation(fields: [packageId], references: [id])
+  status              BookingStatus   @default(REQUESTED)
+  isEmergency         Boolean         @default(false)
   scheduledAt         DateTime
   // Service coordinates — doubles as the "where the professional should
   // arrive" point used for geo-matching at creation time.
@@ -151,10 +209,10 @@ model Booking {
   workerShare         Float
   federationFee       Float
   welfareContribution Float
-  emergencyBonus      Float         @default(0)
+  emergencyBonus      Float           @default(0)
   payment             Payment?
   rating              Rating?
-  createdAt           DateTime      @default(now())
+  createdAt           DateTime        @default(now())
 
   // Service address snapshot (master prompt §8/§43) — deliberately its own
   // fields on Booking, not a foreign key to CustomerAddress: a booking's
@@ -173,6 +231,21 @@ model Booking {
   serviceStartedAt   DateTime?
   serviceCompletedAt DateTime?
 
+  // Cancellation accountability (master prompt §18). Previously a
+  // cancelled booking recorded only the CANCELLED status, so neither the
+  // customer, the worker, nor the federation admin could ever answer
+  // "why" — which is exactly the question an operations team needs when
+  // a worker repeatedly drops jobs.
+  cancellationReason String?
+  cancelledByRole    Role?
+  cancelledAt        DateTime?
+
+  // Rescheduling (§18). The original slot is kept so a worker who
+  // accepted one time and had it moved can see that it changed, and so
+  // repeated rescheduling is visible rather than silent.
+  originalScheduledAt DateTime?
+  rescheduleCount     Int       @default(0)
+
   // Dispatch tracking (SIH26089 "dispatch model" update, §40-41) — no
   // separate BookingWorkerRequest join table; eligibility is recomputed
   // on demand (see dispatch.service.ts) rather than persisted per-worker,
@@ -182,8 +255,20 @@ model Booking {
   broadcastAt         DateTime?
   assignedAt          DateTime?
 
-  otps     OtpVerification[]
-  messages ChatMessage[]
+  otps      OtpVerification[]
+  messages  ChatMessage[]
+  responses BookingWorkerResponse[]
+
+  // Open-dispatch scan: status REQUESTED + workerId null.
+  @@index([status, workerId])
+  // "My bookings" for each side of the marketplace.
+  @@index([customerId, createdAt])
+  @@index([workerId, createdAt])
+  // Fair-allocation workload lookup (jobsTodayByWorker).
+  @@index([workerId, assignedAt])
+  // Admin geo-demand aggregation.
+  @@index([servicePincode])
+  @@index([scheduledAt])
 }
 
 // REQUESTED now means "created, broadcasting to eligible workers, no
@@ -239,6 +324,38 @@ model OtpVerification {
 // Worker <-> customer chat (master prompt §22/§23), scoped to one booking
 // and only meaningful once a worker is assigned — enforced in the
 // controller, not the schema.
+// A worker's response to a broadcast request (V3).
+//
+// Decline was previously client-only: the card vanished for that session
+// and reappeared on next load, and the federation had no record that a
+// worker had seen and passed on a job. Eligibility is still *computed*
+// (matching.service.ts) rather than persisted per worker — this table
+// records only the explicit answers, and the dispatch feed subtracts
+// declines from the computed set.
+//
+// Declining never touches the booking: it stays REQUESTED and every other
+// eligible worker keeps seeing it.
+model BookingWorkerResponse {
+  id        String             @id @default(uuid())
+  bookingId String
+  booking   Booking            @relation(fields: [bookingId], references: [id])
+  workerId  String
+  worker    Worker             @relation(fields: [workerId], references: [id])
+  response  WorkerResponseType
+  reason    String?
+  createdAt DateTime           @default(now())
+
+  // One answer per worker per booking; a re-decline updates rather than
+  // stacking duplicate rows.
+  @@unique([bookingId, workerId])
+  @@index([workerId, createdAt])
+}
+
+enum WorkerResponseType {
+  ACCEPTED
+  DECLINED
+}
+
 model ChatMessage {
   id         String   @id @default(uuid())
   bookingId  String
@@ -286,6 +403,9 @@ model WelfareFundTransaction {
   amount        Float
   type          String // "contribution" | "claim"
   createdAt     DateTime    @default(now())
+
+  @@index([workerId, createdAt])
+  @@index([welfareFundId, createdAt])
 }
 
 model DemandForecast {
@@ -296,4 +416,49 @@ model DemandForecast {
   predictedBookings  Int
   recommendedWorkers Int
   createdAt          DateTime @default(now())
+}
+
+// In-app notifications (master prompt §19). Persisted rather than being
+// Socket.io-only: a push a customer was offline for is exactly the one
+// they most need to see, and an admin auditing "was this worker told?"
+// needs a row, not a fired-and-forgotten event. The live socket push and
+// this table are written together (see notification.service.ts).
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String
+  /// Deep-link target. Not an FK: a notification must survive its booking.
+  bookingId String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+enum NotificationType {
+  // Customer
+  BOOKING_CONFIRMED
+  WORKER_ASSIGNED
+  WORKER_ON_THE_WAY
+  WORKER_ARRIVED
+  SERVICE_STARTED
+  SERVICE_COMPLETED
+  PAYMENT_RECEIVED
+  RATING_REMINDER
+  NO_WORKER_FOUND
+  // Worker
+  NEW_REQUEST
+  REQUEST_TAKEN_ELSEWHERE
+  EARNINGS_CREDITED
+  WELFARE_CREDITED
+  // Either side
+  BOOKING_CANCELLED
+  BOOKING_RESCHEDULED
+  // Admin
+  EMERGENCY_BOOKING
+  UNASSIGNED_BOOKING
 }

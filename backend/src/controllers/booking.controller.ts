@@ -1,15 +1,28 @@
 import { Request, Response } from "express";
-import { OtpPurpose } from "@prisma/client";
+import { OtpPurpose, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
-import { haversineKm } from "../lib/geo";
 import { computeWageSplit } from "../services/wageSplit";
 import { emitBookingEvent, emitOtpReady } from "../socket/events";
 import { requestOtp, verifyOtp } from "../services/otp.service";
 import {
   broadcastBooking,
-  findEligibleWorkers,
   notifyLosingWorkers,
 } from "../services/dispatch.service";
+import {
+  findEligibleWorkers,
+  isEligible,
+  jobsTodayByWorker,
+  scoreWorker,
+  type MatchContext,
+  type RankedWorker,
+} from "../services/matching.service";
+import {
+  notify,
+  notifyFederationAdmins,
+  notifyMany,
+  userIdsForWorkers,
+} from "../services/notification.service";
+import { formatMoney } from "../lib/money";
 
 // Bookings — Part E, Requirements 3, 8, rebuilt around the dispatch model
 // (SIH26089 update §8-25): the customer books a SERVICE, never a
@@ -31,6 +44,7 @@ async function createBookingInternal(
 
   const {
     serviceId,
+    packageId,
     scheduledAt,
     latitude,
     longitude,
@@ -50,7 +64,25 @@ async function createBookingInternal(
   const service = await prisma.service.findUnique({ where: { id: serviceId } });
   if (!service) return res.status(404).json({ error: "Service not found" });
 
-  const split = computeWageSplit(service.basePrice, isEmergency);
+  // Pricing is resolved entirely server-side. The client sends only which
+  // package was chosen — never a price — so a tampered request cannot
+  // change what is charged or what the worker is credited.
+  let selectedPackage = null;
+  if (packageId) {
+    selectedPackage = await prisma.servicePackage.findUnique({ where: { id: packageId } });
+    if (!selectedPackage) {
+      return res.status(404).json({ error: "Service package not found" });
+    }
+    // A package belonging to a different service would silently price this
+    // booking off an unrelated tier.
+    if (selectedPackage.serviceId !== serviceId) {
+      return res.status(400).json({ error: "That package does not belong to this service" });
+    }
+  }
+
+  // One authoritative base figure feeding the one canonical split function.
+  const basePrice = selectedPackage ? selectedPackage.price : service.basePrice;
+  const split = computeWageSplit(basePrice, isEmergency);
 
   const eligible = await findEligibleWorkers({
     serviceCategory: service.category,
@@ -63,6 +95,7 @@ async function createBookingInternal(
     data: {
       customerId: req.user!.id,
       serviceId,
+      packageId: selectedPackage?.id ?? null,
       isEmergency,
       scheduledAt: new Date(scheduledAt),
       latitude,
@@ -81,31 +114,119 @@ async function createBookingInternal(
       eligibleWorkerCount: eligible.length,
       broadcastAt: new Date(),
     },
-    include: { service: true, customer: { select: { id: true, name: true } } },
+    include: {
+      service: true,
+      servicePackage: true,
+      customer: { select: { id: true, name: true } },
+    },
+  });
+
+  await announceBooking(booking, booking.service.name, eligible);
+  await notifyOnBookingCreated(booking, eligible);
+
+  res.status(201).json({ ...booking, workerId: null });
+}
+
+// Every party who should know a booking now exists (§19). Notifications
+// are persisted, so this is also the audit trail for "who was told what,
+// when" — see notification.service.ts.
+async function notifyOnBookingCreated(
+  booking: {
+    id: string;
+    customerId: string;
+    isEmergency: boolean;
+    service: { name: string };
+  },
+  eligible: RankedWorker[]
+) {
+  const label = booking.isEmergency ? "Emergency booking" : "Booking";
+
+  await notify({
+    userId: booking.customerId,
+    type: eligible.length > 0 ? "BOOKING_CONFIRMED" : "NO_WORKER_FOUND",
+    bookingId: booking.id,
+    title: eligible.length > 0 ? `${label} confirmed` : "No professional available yet",
+    body:
+      eligible.length > 0
+        ? `We're finding a verified professional for your ${booking.service.name}. ${eligible.length} nearby ${eligible.length === 1 ? "professional was" : "professionals were"} notified.`
+        : `No verified professional is currently available near you for ${booking.service.name}. You can keep searching or try a different time.`,
   });
 
   if (eligible.length > 0) {
-    const federationIds = await federationIdsForWorkers(eligible.map((w) => w.id));
-    federationIds.forEach((federationId) =>
-      broadcastBooking(
-        {
-          id: booking.id,
-          serviceName: booking.service.name,
-          isEmergency: booking.isEmergency,
-          scheduledAt: booking.scheduledAt,
-          workerShare: booking.workerShare,
-          emergencyBonus: booking.emergencyBonus,
-          latitude: booking.latitude,
-          longitude: booking.longitude,
-          servicePincode: booking.servicePincode,
-        },
-        eligible,
-        federationId
-      )
+    const workerUserIds = await userIdsForWorkers(eligible.map((w) => w.id));
+    await notifyMany(
+      workerUserIds.map((userId) => ({
+        userId,
+        type: "NEW_REQUEST" as const,
+        bookingId: booking.id,
+        title: booking.isEmergency ? "🚨 Emergency job request" : "New job request",
+        body: `${booking.service.name} — open your Jobs tab to accept.`,
+      }))
     );
   }
 
-  res.status(201).json({ ...booking, workerId: null });
+  // The federation's operations desk hears about the two cases it can
+  // actually act on: an emergency, and a booking nobody can serve.
+  const federationIds = await federationIdsForWorkers(eligible.map((w) => w.id));
+  for (const federationId of federationIds) {
+    if (booking.isEmergency) {
+      await notifyFederationAdmins(federationId, {
+        type: "EMERGENCY_BOOKING",
+        bookingId: booking.id,
+        title: "Emergency booking raised",
+        body: `${booking.service.name} — broadcast to ${eligible.length} available ${eligible.length === 1 ? "worker" : "workers"}.`,
+      });
+    }
+  }
+  if (eligible.length === 0) {
+    // No eligible worker means no federation to scope through, so this
+    // goes to every federation admin — the unserved-area signal is
+    // exactly what workforce planning needs, and there is nobody else who
+    // could route it more precisely.
+    const allFederations = await prisma.federation.findMany({ select: { id: true } });
+    for (const f of allFederations) {
+      await notifyFederationAdmins(f.id, {
+        type: "UNASSIGNED_BOOKING",
+        bookingId: booking.id,
+        title: "Booking with no available worker",
+        body: `${booking.service.name} could not be matched to any available verified worker.`,
+      });
+    }
+  }
+}
+
+// Tells every eligible worker (and their federation's admin room) about a
+// booking that is looking for someone. Shared by first dispatch and
+// re-dispatch so the two can't drift.
+async function announceBooking(
+  booking: {
+    id: string;
+    isEmergency: boolean;
+    scheduledAt: Date;
+    workerShare: number;
+    emergencyBonus: number;
+    servicePincode: string | null;
+  },
+  serviceName: string,
+  eligible: RankedWorker[]
+) {
+  if (eligible.length === 0) return;
+  const federationIds = await federationIdsForWorkers(eligible.map((w) => w.id));
+  federationIds.forEach((federationId) =>
+    broadcastBooking(
+      {
+        id: booking.id,
+        serviceName,
+        isEmergency: booking.isEmergency,
+        scheduledAt: booking.scheduledAt,
+        workerShare: booking.workerShare,
+        emergencyBonus: booking.emergencyBonus,
+        servicePincode: booking.servicePincode,
+      },
+      eligible,
+      federationId
+    )
+  );
 }
 
 async function federationIdsForWorkers(workerIds: string[]): Promise<string[]> {
@@ -158,26 +279,7 @@ export async function redispatchBooking(req: Request, res: Response) {
     data: { eligibleWorkerCount: eligible.length, broadcastAt: new Date() },
   });
 
-  if (eligible.length > 0) {
-    const federationIds = await federationIdsForWorkers(eligible.map((w) => w.id));
-    federationIds.forEach((federationId) =>
-      broadcastBooking(
-        {
-          id: booking.id,
-          serviceName: booking.service.name,
-          isEmergency: booking.isEmergency,
-          scheduledAt: booking.scheduledAt,
-          workerShare: booking.workerShare,
-          emergencyBonus: booking.emergencyBonus,
-          latitude: booking.latitude,
-          longitude: booking.longitude,
-          servicePincode: booking.servicePincode,
-        },
-        eligible,
-        federationId
-      )
-    );
-  }
+  await announceBooking(booking, booking.service.name, eligible);
 
   res.json({ ...updated, eligibleWorkerCount: eligible.length });
 }
@@ -213,25 +315,61 @@ export async function acceptBooking(req: Request, res: Response) {
     return res.status(403).json({ error: "This job is outside your skills" });
   }
 
+  // Two atomic claims are needed, not one, and they guard different
+  // things:
+  //
+  //   1. this worker is not already on a job  (one worker -> one booking)
+  //   2. this booking has no worker yet       (one booking -> one worker)
+  //
+  // The availability check above is only a read, so on its own it cannot
+  // stop the same worker from winning two *different* bookings pushed to
+  // them at the same moment: both requests read AVAILABLE, both then claim
+  // their own booking, and both set BUSY. That is not hypothetical — it
+  // left two live bookings assigned to worker 9000000121 in this database.
+  //
+  // So the worker is locked first, by a conditional UPDATE that only one
+  // concurrent caller can win, and released again if the booking claim
+  // then fails. Taking the worker lock first (rather than the booking
+  // first) matters: releasing a worker back to AVAILABLE is purely local,
+  // whereas un-claiming a booking would race with every other worker
+  // trying to accept it.
+  const lock = await prisma.worker.updateMany({
+    where: { id: worker.id, availability: "AVAILABLE" },
+    data: { availability: "BUSY" },
+  });
+  if (lock.count === 0) {
+    return res.status(409).json({ error: "You're currently busy with another job" });
+  }
+
   const claim = await prisma.booking.updateMany({
     where: { id: booking.id, status: "REQUESTED", workerId: null },
     data: { status: "ASSIGNED", workerId: worker.id, assignedAt: new Date() },
   });
   if (claim.count === 0) {
+    await prisma.worker.update({
+      where: { id: worker.id },
+      data: { availability: "AVAILABLE" },
+    });
     return res.status(409).json({ error: "This request is no longer available." });
   }
 
-  const [updated] = await prisma.$transaction([
-    prisma.booking.findUniqueOrThrow({
-      where: { id: booking.id },
-      include: {
-        service: true,
-        worker: { include: { user: { select: { id: true, name: true, phone: true } } } },
-        customer: { select: { id: true, name: true, phone: true } },
-      },
-    }),
-    prisma.worker.update({ where: { id: worker.id }, data: { availability: "BUSY" } }),
-  ]);
+  // Recorded alongside the assignment so accept/decline sit in one table
+  // the federation can analyse. Never gates the assignment itself — the
+  // atomic claim above already decided the outcome.
+  await prisma.bookingWorkerResponse.upsert({
+    where: { bookingId_workerId: { bookingId: booking.id, workerId: worker.id } },
+    create: { bookingId: booking.id, workerId: worker.id, response: "ACCEPTED" },
+    update: { response: "ACCEPTED" },
+  });
+
+  const updated = await prisma.booking.findUniqueOrThrow({
+    where: { id: booking.id },
+    include: {
+      service: true,
+      worker: { include: { user: { select: { id: true, name: true, phone: true } } } },
+      customer: { select: { id: true, name: true, phone: true } },
+    },
+  });
 
   const federationId = worker.society.federationId;
 
@@ -254,7 +392,134 @@ export async function acceptBooking(req: Request, res: Response) {
   });
   notifyLosingWorkers(booking.id, worker.id, stillEligible);
 
+  await notify({
+    userId: booking.customerId,
+    type: "WORKER_ASSIGNED",
+    bookingId: booking.id,
+    title: "Professional assigned",
+    body: `${updated.worker?.user.name ?? "A verified professional"} accepted your ${booking.service.name}.`,
+  });
+
+  const losingUserIds = await userIdsForWorkers(
+    stillEligible.filter((w) => w.id !== worker.id).map((w) => w.id)
+  );
+  await notifyMany(
+    losingUserIds.map((userId) => ({
+      userId,
+      type: "REQUEST_TAKEN_ELSEWHERE" as const,
+      bookingId: booking.id,
+      title: "Request already taken",
+      body: `The ${booking.service.name} request was accepted by another professional.`,
+    }))
+  );
+
   res.json(updated);
+}
+
+// Rescheduling (master prompt §18). Allowed only while nobody has
+// physically set out: once a worker is ON_THE_WAY, moving the slot would
+// strand someone who is already travelling, so that is a cancel-and-rebook,
+// not a reschedule.
+const RESCHEDULABLE_STATUSES = ["REQUESTED", "ASSIGNED"];
+
+export async function rescheduleBooking(req: Request, res: Response) {
+  const { scheduledAt } = req.body ?? {};
+  if (typeof scheduledAt !== "string") {
+    return res.status(400).json({ error: "scheduledAt is required" });
+  }
+  const next = new Date(scheduledAt);
+  if (Number.isNaN(next.getTime())) {
+    return res.status(400).json({ error: "scheduledAt must be a valid date" });
+  }
+  if (next.getTime() < Date.now()) {
+    return res.status(400).json({ error: "Cannot reschedule to a time in the past" });
+  }
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: req.params.id },
+    include: { service: true, worker: true },
+  });
+  if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+  const isCustomer = booking.customerId === req.user!.id;
+  const isAdmin = req.user!.role === "FEDERATION_ADMIN";
+  if (!isCustomer && !isAdmin) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  if (!RESCHEDULABLE_STATUSES.includes(booking.status)) {
+    return res.status(400).json({
+      error: `A ${booking.status.toLowerCase().replace(/_/g, " ")} booking can no longer be rescheduled`,
+    });
+  }
+
+  const updated = await prisma.booking.update({
+    where: { id: booking.id },
+    data: {
+      scheduledAt: next,
+      // Recorded once, on the first move, so this always means "the slot
+      // originally agreed" rather than "the slot before the latest move".
+      originalScheduledAt: booking.originalScheduledAt ?? booking.scheduledAt,
+      rescheduleCount: { increment: 1 },
+    },
+  });
+
+  // An assigned worker planned their day around the old slot.
+  if (booking.worker) {
+    await notify({
+      userId: booking.worker.userId,
+      type: "BOOKING_RESCHEDULED",
+      bookingId: booking.id,
+      title: "Job rescheduled",
+      body: `${booking.service.name} moved to ${next.toLocaleString("en-IN")}.`,
+    });
+    emitBookingEvent(
+      "booking:statusUpdate",
+      (await prisma.society.findUniqueOrThrow({
+        where: { id: booking.worker.societyId },
+        select: { federationId: true },
+      })).federationId,
+      booking.workerId!,
+      { id: updated.id, status: updated.status, workerId: updated.workerId },
+      booking.customerId
+    );
+  }
+
+  res.json(updated);
+}
+
+// A worker passes on a broadcast request (V3).
+//
+// Deliberately does NOT touch the booking: it stays REQUESTED, and every
+// other eligible worker keeps seeing it. Only this worker's own feed is
+// affected. Recorded server-side so the federation can see response
+// behaviour, and so a decline survives the worker restarting the app.
+export async function declineBooking(req: Request, res: Response) {
+  const worker = await prisma.worker.findUnique({ where: { userId: req.user!.id } });
+  if (!worker) return res.status(403).json({ error: "No worker profile for this account" });
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, status: true, workerId: true },
+  });
+  if (!booking) return res.status(404).json({ error: "Booking not found" });
+  // Declining something already assigned is meaningless; an assigned
+  // worker who wants out must cancel, which has different consequences.
+  if (booking.status !== "REQUESTED" || booking.workerId) {
+    return res.status(409).json({ error: "This request is no longer open" });
+  }
+
+  const reason =
+    typeof req.body?.reason === "string" && req.body.reason.trim()
+      ? req.body.reason.trim().slice(0, 200)
+      : null;
+
+  await prisma.bookingWorkerResponse.upsert({
+    where: { bookingId_workerId: { bookingId: booking.id, workerId: worker.id } },
+    create: { bookingId: booking.id, workerId: worker.id, response: "DECLINED", reason },
+    update: { response: "DECLINED", reason },
+  });
+
+  res.json({ ok: true, bookingId: booking.id, response: "DECLINED" });
 }
 
 // Explicit transition table (§28/§46 — "do not allow arbitrary status
@@ -276,14 +541,14 @@ const PLAIN_TRANSITIONS: Record<string, string[]> = {
 };
 
 export async function updateBookingStatus(req: Request, res: Response) {
-  const { status } = req.body ?? {};
+  const { status, cancellationReason } = req.body ?? {};
   if (typeof status !== "string") {
     return res.status(400).json({ error: "status is required" });
   }
 
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.id },
-    include: { worker: { include: { society: true } }, payment: true },
+    include: { worker: { include: { society: true } }, payment: true, service: true },
   });
   if (!booking) return res.status(404).json({ error: "Booking not found" });
 
@@ -306,7 +571,22 @@ export async function updateBookingStatus(req: Request, res: Response) {
 
   const updated = await prisma.booking.update({
     where: { id: booking.id },
-    data: { status: status as never },
+    data: {
+      status: status as never,
+      // Cancellation accountability (§18). Recorded from the actor's own
+      // authenticated role, never from the request body, so "the worker
+      // cancelled" can't be asserted by the customer.
+      ...(status === "CANCELLED"
+        ? {
+            cancelledAt: new Date(),
+            cancelledByRole: req.user!.role as Role,
+            cancellationReason:
+              typeof cancellationReason === "string" && cancellationReason.trim()
+                ? cancellationReason.trim().slice(0, 500)
+                : null,
+          }
+        : {}),
+    },
   });
 
   // A booking that already had a worker assigned frees them back up on
@@ -314,6 +594,8 @@ export async function updateBookingStatus(req: Request, res: Response) {
   if (status === "CANCELLED" && booking.workerId) {
     await prisma.worker.update({ where: { id: booking.workerId }, data: { availability: "AVAILABLE" } });
   }
+
+  await notifyOnStatusChange(booking, updated.status, req.user!.role, updated.cancellationReason);
 
   if (booking.worker) {
     emitBookingEvent(
@@ -340,6 +622,70 @@ export async function updateBookingStatus(req: Request, res: Response) {
   }
 
   res.json(updated);
+}
+
+// Who to tell about a plain status transition, and what to say (§19).
+// Kept next to the transition table rather than inside it: the table is
+// about what is *legal*, this is about who *cares*.
+async function notifyOnStatusChange(
+  booking: {
+    id: string;
+    customerId: string;
+    workerId: string | null;
+    service: { name: string };
+    worker: { userId: string; society: { federationId: string } } | null;
+  },
+  status: string,
+  actorRole: string,
+  reason: string | null
+) {
+  if (status === "ON_THE_WAY" || status === "ARRIVED") {
+    await notify({
+      userId: booking.customerId,
+      type: status === "ON_THE_WAY" ? "WORKER_ON_THE_WAY" : "WORKER_ARRIVED",
+      bookingId: booking.id,
+      title: status === "ON_THE_WAY" ? "Your professional is on the way" : "Your professional has arrived",
+      body:
+        status === "ON_THE_WAY"
+          ? `They're heading to your location for ${booking.service.name}.`
+          : `Share your 4-digit start code to begin ${booking.service.name}.`,
+    });
+    return;
+  }
+
+  if (status !== "CANCELLED") return;
+
+  const suffix = reason ? ` Reason: ${reason}` : "";
+  // Tell whichever side did not do the cancelling. Telling the actor what
+  // they just did is noise, not a notification.
+  const recipients: { userId: string; you: string }[] = [];
+  if (actorRole !== "CUSTOMER") {
+    recipients.push({ userId: booking.customerId, you: "Your booking" });
+  }
+  if (booking.worker && actorRole === "CUSTOMER") {
+    recipients.push({ userId: booking.worker.userId, you: "Your job" });
+  }
+
+  await notifyMany(
+    recipients.map((r) => ({
+      userId: r.userId,
+      type: "BOOKING_CANCELLED" as const,
+      bookingId: booking.id,
+      title: "Booking cancelled",
+      body: `${r.you} for ${booking.service.name} was cancelled.${suffix}`,
+    }))
+  );
+
+  // A worker dropping an already-accepted job is an operations event —
+  // the federation needs to see the pattern, not just the single row.
+  if (booking.worker && actorRole === "WORKER") {
+    await notifyFederationAdmins(booking.worker.society.federationId, {
+      type: "BOOKING_CANCELLED",
+      bookingId: booking.id,
+      title: "Worker cancelled an assigned job",
+      body: `${booking.service.name} was cancelled after assignment.${suffix}`,
+    });
+  }
 }
 
 // Requirement 19/25 — the customer's own view of the currently active
@@ -383,7 +729,7 @@ export async function verifyServiceOtp(req: Request, res: Response) {
 
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.id },
-    include: { worker: { include: { society: true } }, payment: true },
+    include: { worker: { include: { society: true } }, payment: true, service: true },
   });
   if (!booking || !booking.worker) return res.status(404).json({ error: "Booking not found" });
 
@@ -429,6 +775,13 @@ export async function verifyServiceOtp(req: Request, res: Response) {
       { id: updated.id, status: updated.status, workerId: updated.workerId },
       booking.customerId
     );
+    await notify({
+      userId: booking.customerId,
+      type: "SERVICE_STARTED",
+      bookingId: booking.id,
+      title: "Service started",
+      body: `Work has begun on your ${booking.service.name}.`,
+    });
     return res.json(updated);
   }
 
@@ -452,6 +805,7 @@ export async function verifyServiceOtp(req: Request, res: Response) {
       { id: updated.id, status: updated.status, workerId: updated.workerId },
       booking.customerId
     );
+    await notifyOnCompletion(booking, false);
     return res.json(updated);
   }
 
@@ -491,7 +845,63 @@ export async function verifyServiceOtp(req: Request, res: Response) {
     booking.customerId
   );
 
+  await notifyOnCompletion(booking, true);
+
   res.json(updated);
+}
+
+// Both sides of a finished job (§19). The worker's earnings notification
+// restates the exact Part F split rather than a lump sum, so the
+// transparency promise holds even in a notification body.
+async function notifyOnCompletion(
+  booking: {
+    id: string;
+    customerId: string;
+    workerShare: number;
+    welfareContribution: number;
+    service: { name: string };
+    worker: { userId: string } | null;
+  },
+  welfareCredited: boolean
+) {
+  await notify({
+    userId: booking.customerId,
+    type: "SERVICE_COMPLETED",
+    bookingId: booking.id,
+    title: "Service completed",
+    body: `Your ${booking.service.name} is done. Rate your professional to help the cooperative.`,
+  });
+  await notify({
+    userId: booking.customerId,
+    type: "RATING_REMINDER",
+    bookingId: booking.id,
+    title: "How did it go?",
+    body: `Leave a rating for your ${booking.service.name}.`,
+  });
+
+  if (!booking.worker) return;
+
+  await notify({
+    userId: booking.worker.userId,
+    type: "EARNINGS_CREDITED",
+    bookingId: booking.id,
+    title: `You earned ${formatMoney(booking.workerShare)}`,
+    body: `${booking.service.name} completed.`,
+  });
+
+  // Only claimed when it actually happened — the welfare credit is gated
+  // on the booking having been paid for (see the branch above), and
+  // telling a worker money was set aside when it wasn't would be exactly
+  // the kind of fake transparency this product exists to avoid.
+  if (welfareCredited) {
+    await notify({
+      userId: booking.worker.userId,
+      type: "WELFARE_CREDITED",
+      bookingId: booking.id,
+      title: `${formatMoney(booking.welfareContribution)} added to your welfare fund`,
+      body: `From your ${booking.service.name}.`,
+    });
+  }
 }
 
 // Worker taps "Complete service" — moves IN_PROGRESS -> COMPLETION_PENDING
@@ -551,37 +961,74 @@ export async function listIncomingRequests(req: Request, res: Response) {
     return res.json([]);
   }
 
+  // Requests this worker has explicitly passed on stay out of their feed
+  // permanently, not just for the current session.
+  const declined = await prisma.bookingWorkerResponse.findMany({
+    where: { workerId: worker.id, response: "DECLINED" },
+    select: { bookingId: true },
+  });
+
   const candidates = await prisma.booking.findMany({
     where: {
       status: "REQUESTED",
       workerId: null,
       service: { category: { in: worker.skills } },
+      id: { notIn: declined.map((d) => d.bookingId) },
     },
-    include: { service: true },
-    orderBy: { isEmergency: "desc" },
+    include: { service: true, servicePackage: true },
   });
 
-  const eligible = candidates.filter((b) => {
-    if (b.servicePincode) {
-      if (worker.society.pincode) return b.servicePincode === worker.society.pincode;
-    }
-    if (worker.latitude == null || worker.longitude == null) return false;
-    return haversineKm(b.latitude, b.longitude, worker.latitude, worker.longitude) <= 25;
-  });
+  // Same worker shape the broadcast side scores against, so this feed and
+  // the Socket.io push agree by construction rather than by two people
+  // remembering to keep two filters in sync.
+  const self = {
+    id: worker.id,
+    userId: worker.userId,
+    latitude: worker.latitude,
+    longitude: worker.longitude,
+    ratingAvg: worker.ratingAvg,
+    societyPincode: worker.society.pincode,
+    jobsToday: (await jobsTodayByWorker([worker.id])).get(worker.id) ?? 0,
+  };
+
+  const offers = candidates
+    .map((b) => {
+      const ctx: MatchContext = {
+        serviceCategory: b.service.category,
+        servicePincode: b.servicePincode,
+        latitude: b.latitude,
+        longitude: b.longitude,
+      };
+      return { booking: b, ctx, match: scoreWorker(self, ctx) };
+    })
+    .filter(({ ctx }) => isEligible(self, ctx))
+    // Emergencies first (they carry the urgency premium and a customer
+    // waiting right now), then by how well this worker matches the job.
+    .sort((a, b) => {
+      if (a.booking.isEmergency !== b.booking.isEmergency) return a.booking.isEmergency ? -1 : 1;
+      return b.match.score - a.match.score;
+    });
 
   res.json(
-    eligible.map((b) => ({
+    offers.map(({ booking: b, match }) => ({
       id: b.id,
       serviceName: b.service.name,
+      packageName: b.servicePackage?.name ?? null,
       isEmergency: b.isEmergency,
       scheduledAt: b.scheduledAt,
       workerShare: b.workerShare,
       emergencyBonus: b.emergencyBonus,
       servicePincode: b.servicePincode,
-      distanceKm:
-        worker.latitude != null && worker.longitude != null
-          ? Math.round(haversineKm(b.latitude, b.longitude, worker.latitude, worker.longitude) * 10) / 10
-          : null,
+      distanceKm: match.distanceKm,
+      matchScore: match.score,
+      inYourArea: match.pincodeMatch,
+      // How long the job is expected to take — a worker deciding whether
+      // to accept needs to know what they are committing their afternoon
+      // to, not just what it pays.
+      // Package duration when one was chosen — that is what the worker is
+      // actually committing their afternoon to.
+      durationMinMinutes: b.servicePackage?.durationMinMinutes ?? b.service.durationMinMinutes,
+      durationMaxMinutes: b.servicePackage?.durationMaxMinutes ?? b.service.durationMaxMinutes,
     }))
   );
 }
@@ -591,6 +1038,7 @@ export async function getBooking(req: Request, res: Response) {
     where: { id: req.params.id },
     include: {
       service: true,
+      servicePackage: true,
       worker: { include: { user: { select: { id: true, name: true, phone: true } } } },
       customer: { select: { id: true, name: true, phone: true } },
       payment: true,
@@ -630,6 +1078,11 @@ export async function listBookings(req: Request, res: Response) {
     include: {
       service: true,
       worker: { include: { user: { select: { id: true, name: true, phone: true } } } },
+      // Included so the bookings list can tell an already-rated booking
+      // from one still awaiting a rating — without it the app re-prompts
+      // for a rating the customer has already given.
+      rating: true,
+      payment: true,
     },
     orderBy: { createdAt: "desc" },
   });

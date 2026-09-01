@@ -12,8 +12,11 @@ import type { WorkerAvailability } from "../../api/workers";
 import type { Booking, BookingStatus } from "../../api/types";
 import { formatCurrency, formatDateTime } from "../../lib/format";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
-import { Badge, Button, Card, LoadingState, StatCard, VerifiedBadge } from "../../components/ui";
+import NotificationBell from "../../components/NotificationBell";
+import { Card, ErrorState, RequestCard, SkeletonList, StatCard, StatusBadge, VerifiedBadge } from "../../components/ui";
 import { colors, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { icons, iconSize } from "../../theme/icons";
 
 type Props = NativeStackScreenProps<HomeStackParamList, "WorkerHome">;
 
@@ -42,7 +45,7 @@ function isToday(iso: string): boolean {
 // client-side from listMyBookings()/getWorkerWelfare() — nothing
 // fabricated, no separate "today" endpoint exists.
 export default function WorkerHomeScreen({ navigation }: Props) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const switchTab = useTabSwitch();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -52,11 +55,14 @@ export default function WorkerHomeScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [ratingAvg, setRatingAvg] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [all, requests] = await Promise.all([listMyBookings(), listIncomingRequests()]);
+      setLoadFailed(false);
       setBookings(all.filter((b) => MY_JOB_STATUSES.includes(b.status) || b.status === "COMPLETED"));
       setIncoming(requests);
       if (user?.worker?.id) {
@@ -65,12 +71,17 @@ export default function WorkerHomeScreen({ navigation }: Props) {
           getWorker(user.worker.id),
         ]);
         setAvailability(profile.availability);
+        setRatingAvg(profile.ratingAvg ?? null);
         setWelfareToday(
           welfare.transactions
             .filter((t) => t.type === "contribution" && isToday(t.createdAt))
             .reduce((sum, t) => sum + t.amount, 0)
         );
       }
+    } catch {
+      // Was uncaught: the home screen rendered zeroed stats with no hint
+      // that anything had failed.
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -80,13 +91,22 @@ export default function WorkerHomeScreen({ navigation }: Props) {
     load();
   }, [load]);
 
-  if (loading) return <LoadingState />;
+  if (loading) return <SkeletonList count={3} variant="row" />;
+  if (loadFailed) {
+    return <ErrorState message={t("common.loadFailed")} onRetry={load} retryLabel={t("common.retry")} />;
+  }
 
   const todaysBookings = bookings.filter((b) => isToday(b.scheduledAt));
   const todaysEarnings = todaysBookings
     .filter((b) => b.status === "COMPLETED")
     .reduce((sum, b) => sum + b.workerShare, 0);
   const previewRequests = incoming.slice(0, 3);
+  // The single most actionable thing on this screen: a job already in
+  // flight outranks browsing new requests, so it renders first.
+  const activeJob = bookings.find((b) => MY_JOB_STATUSES.includes(b.status)) ?? null;
+  const upcomingCount = bookings.filter(
+    (b) => MY_JOB_STATUSES.includes(b.status) && b.id !== activeJob?.id
+  ).length;
 
   async function toggleAvailability() {
     if (!user?.worker?.id || availability === "BUSY") return;
@@ -113,8 +133,13 @@ export default function WorkerHomeScreen({ navigation }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.greeting}>Good day, {user?.name?.split(" ")[0] ?? "there"}</Text>
-      <VerifiedBadge label="Verified Professional" />
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.greeting}>{t("workerHome.greeting", { name: user?.name?.split(" ")[0] ?? "" })}</Text>
+          <VerifiedBadge label={t("profile.verifiedProfessional")} />
+        </View>
+        <NotificationBell onPress={() => navigation.navigate("Notifications")} />
+      </View>
       <View style={styles.switcher}>
         <LanguageSwitcher persist />
       </View>
@@ -123,12 +148,16 @@ export default function WorkerHomeScreen({ navigation }: Props) {
         <View style={styles.availabilityRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.availabilityLabel}>
-              {availability === "BUSY" ? "On a job" : availability === "AVAILABLE" ? "Online" : "Offline"}
+              {availability === "BUSY"
+                ? t("workerHome.onJob")
+                : availability === "AVAILABLE"
+                ? t("workerHome.online")
+                : t("workerHome.offline")}
             </Text>
             <Text style={styles.availabilitySub}>
               {availability === "BUSY"
-                ? "You'll go back online automatically once this job is done."
-                : "Only AVAILABLE workers receive new service requests."}
+                ? t("workerHome.busyHint")
+                : t("workerHome.availabilityHint")}
             </Text>
           </View>
           <Switch
@@ -140,50 +169,68 @@ export default function WorkerHomeScreen({ navigation }: Props) {
         </View>
       </Card>
 
+      {activeJob && (
+        <TouchableOpacity
+          onPress={() => navigation.navigate("JobDetail", { bookingId: activeJob.id })}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+        >
+          <Card style={styles.activeJobCard}>
+            <View style={styles.activeJobHeader}>
+              <Text style={styles.activeJobLabel}>{t("workerHome.activeJob")}</Text>
+              <StatusBadge status={activeJob.status} />
+            </View>
+            <Text style={styles.activeJobService}>{activeJob.service.name}</Text>
+            <Text style={styles.activeJobMeta}>
+              {formatDateTime(activeJob.scheduledAt, i18n.language)}
+            </Text>
+            <View style={styles.ctaRow}>
+              <Text style={styles.activeJobCta}>{t("workerHome.openJob")}</Text>
+              <Ionicons name={icons.chevron} size={iconSize.sm} color={colors.primary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+      )}
+
       <View style={styles.statRow}>
-        <StatCard label="Today's jobs" value={String(todaysBookings.length)} />
+        <StatCard label={t("workerHome.todaysJobs")} value={String(todaysBookings.length)} />
         <StatCard
-          label="Today's earnings"
+          label={t("workerHome.todaysEarnings")}
           value={formatCurrency(todaysEarnings, i18n.language)}
           tone="highlight"
         />
       </View>
       <View style={styles.statRow}>
-        <StatCard label="Welfare contribution today" value={formatCurrency(welfareToday, i18n.language)} />
+        <StatCard label={t("workerHome.upcomingJobs")} value={String(upcomingCount)} />
+        <StatCard
+          label={t("workerHome.yourRating")}
+          value={ratingAvg && ratingAvg > 0 ? ratingAvg.toFixed(1) : t("workerHome.notRatedYet")}
+        />
+      </View>
+      <View style={styles.statRow}>
+        <StatCard label={t("workerHome.welfareToday")} value={formatCurrency(welfareToday, i18n.language)} />
       </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>New requests</Text>
-        <TouchableOpacity onPress={() => switchTab("jobs")}>
-          <Text style={styles.viewAll}>View all</Text>
+        <Text style={styles.sectionTitle}>{t("workerHome.newRequests")}</Text>
+        <TouchableOpacity onPress={() => switchTab("jobs")} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={styles.viewAll}>{t("workerHome.viewAll")}</Text>
         </TouchableOpacity>
       </View>
 
       {previewRequests.length === 0 ? (
         <Card>
-          <Text style={styles.emptyText}>No job requests right now.</Text>
+          <Text style={styles.emptyText}>{t("workerHome.noRequests")}</Text>
         </Card>
       ) : (
         previewRequests.map((req) => (
-          <Card key={req.id} style={[styles.jobCard, req.isEmergency && styles.jobCardEmergency]}>
-            {req.isEmergency && <Badge label="🚨 EMERGENCY" tone="error" />}
-            <Text style={styles.jobService}>{req.serviceName}</Text>
-            <Text style={styles.jobMeta}>
-              {req.distanceKm != null ? `${req.distanceKm} km · ` : ""}
-              {formatDateTime(req.scheduledAt, i18n.language)}
-            </Text>
-            <Text style={styles.jobEarning}>
-              {formatCurrency(req.workerShare, i18n.language)}
-              {req.isEmergency ? ` (+${formatCurrency(req.emergencyBonus, i18n.language)} incentive)` : ""}
-            </Text>
-            <Button
-              label="Accept"
-              onPress={() => accept(req.id)}
-              loading={acceptingId === req.id}
-              disabled={acceptingId !== null}
-              style={styles.acceptButton}
-            />
-          </Card>
+          <RequestCard
+            key={req.id}
+            request={req}
+            accepting={acceptingId === req.id}
+            disabled={acceptingId !== null}
+            onAccept={() => accept(req.id)}
+          />
         ))
       )}
     </ScrollView>
@@ -191,10 +238,23 @@ export default function WorkerHomeScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  ctaRow: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 12 },
   container: { padding: spacing.xl, paddingBottom: spacing.xxxl },
+  headerRow: { flexDirection: "row", alignItems: "flex-start" },
   greeting: { ...type.h1, color: colors.textPrimary, marginBottom: spacing.sm },
   switcher: { marginVertical: spacing.lg, alignItems: "flex-start" },
   availabilityCard: { marginBottom: spacing.lg },
+  activeJobCard: {
+    marginBottom: spacing.lg,
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+    borderWidth: 1,
+  },
+  activeJobHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  activeJobLabel: { ...type.caption, color: colors.primaryDark },
+  activeJobService: { ...type.h3, color: colors.textPrimary, marginTop: spacing.xs },
+  activeJobMeta: { ...type.small, color: colors.textSecondary, marginTop: 2 },
+  activeJobCta: { ...type.smallMedium, color: colors.primary, marginTop: spacing.md },
   availabilityRow: { flexDirection: "row", alignItems: "center" },
   availabilityLabel: { ...type.bodyMedium, color: colors.textPrimary },
   availabilitySub: { ...type.caption, color: colors.textMuted, marginTop: 2 },
@@ -209,10 +269,4 @@ const styles = StyleSheet.create({
   sectionTitle: { ...type.h3, color: colors.textPrimary },
   viewAll: { ...type.smallMedium, color: colors.primary },
   emptyText: { ...type.body, color: colors.textSecondary },
-  jobCard: { marginBottom: spacing.md },
-  jobCardEmergency: { borderColor: colors.error, borderWidth: 1.5 },
-  jobService: { ...type.h3, color: colors.textPrimary },
-  jobMeta: { ...type.small, color: colors.textSecondary, marginTop: spacing.xs },
-  jobEarning: { ...type.bodyMedium, color: colors.success, marginTop: spacing.sm },
-  acceptButton: { marginTop: spacing.md },
 });

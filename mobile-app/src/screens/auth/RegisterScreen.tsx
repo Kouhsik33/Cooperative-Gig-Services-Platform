@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { useAuth } from "../../store/AuthContext";
-import { Button, Card } from "../../components/ui";
+import { Button, Card, FormScreen } from "../../components/ui";
 import { colors, radius, spacing, type } from "../../theme/tokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Register">;
@@ -25,7 +25,7 @@ export default function RegisterScreen({ route, navigation }: Props) {
 
   async function handleSubmit() {
     if (!name.trim()) {
-      Alert.alert("Enter your name to continue");
+      Alert.alert(t("auth.nameRequired"));
       return;
     }
     setSubmitting(true);
@@ -34,8 +34,8 @@ export default function RegisterScreen({ route, navigation }: Props) {
       // RootNavigator switches to CustomerApp/WorkerApp automatically.
     } catch (err: any) {
       Alert.alert(
-        "Could not create your account",
-        err?.response?.data?.error ?? "Please try again."
+        t("auth.registerFailedTitle"),
+        err?.response?.data?.error ?? t("auth.registerFailedMessage")
       );
     } finally {
       setSubmitting(false);
@@ -43,14 +43,14 @@ export default function RegisterScreen({ route, navigation }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <FormScreen contentContainerStyle={styles.container}>
       <Text style={styles.title}>{t("auth.registerTitle")}</Text>
       <Text style={styles.subtitle}>+91 {phone}</Text>
 
-      <Text style={styles.label}>Your name</Text>
+      <Text style={styles.label}>{t("auth.yourName")}</Text>
       <TextInput
         style={styles.input}
-        placeholder="Full name"
+        placeholder={t("auth.namePlaceholder")}
         placeholderTextColor={colors.textMuted}
         value={name}
         onChangeText={setName}
@@ -59,21 +59,21 @@ export default function RegisterScreen({ route, navigation }: Props) {
       <Text style={styles.label}>I am a</Text>
       <View style={styles.roleRow}>
         <RoleCard
-          label="Customer"
-          description="Book trusted cooperative professionals"
+          label={t("auth.roleCustomer")}
+          description={t("auth.roleCustomerHint")}
           selected={role === "CUSTOMER"}
           onPress={() => setRole("CUSTOMER")}
         />
         <RoleCard
-          label="Worker"
-          description="Offer your services through the cooperative"
+          label={t("auth.roleWorker")}
+          description={t("auth.roleWorkerHint")}
           selected={role === "WORKER"}
           onPress={() => setRole("WORKER")}
         />
       </View>
 
-      <Button label="Create account" onPress={handleSubmit} loading={submitting} style={styles.button} />
-    </ScrollView>
+      <Button label={t("auth.createAccount")} onPress={handleSubmit} loading={submitting} style={styles.button} />
+    </FormScreen>
   );
 }
 

@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import ServiceCatalogScreen from "../screens/customer/ServiceCatalogScreen";
+import ServiceDetailScreen from "../screens/customer/ServiceDetailScreen";
 import BookingSlotScreen from "../screens/customer/BookingSlotScreen";
 import FairPricingBreakdownScreen from "../screens/customer/FairPricingBreakdownScreen";
 import CheckoutScreen from "../screens/customer/CheckoutScreen";
@@ -12,6 +13,7 @@ import LocationPickerScreen from "../screens/customer/LocationPickerScreen";
 import AddAddressScreen from "../screens/customer/AddAddressScreen";
 import BookingTrackingScreen from "../screens/customer/BookingTrackingScreen";
 import ChatScreen from "../screens/shared/ChatScreen";
+import NotificationsScreen from "../screens/shared/NotificationsScreen";
 import BottomTabs from "./BottomTabs";
 import { screenOptions } from "./stackStyle";
 
@@ -35,6 +37,8 @@ import { screenOptions } from "./stackStyle";
 type SharedRoutes = {
   FairPricingBreakdown: {
     serviceId: string;
+    packageId?: string;
+    packageName?: string;
     scheduledAt: string;
     latitude: number;
     longitude: number;
@@ -53,11 +57,13 @@ type SharedRoutes = {
   Chat: { bookingId: string; otherPartyName: string };
   LocationPicker: undefined;
   AddAddress: undefined;
+  ServiceDetail: { serviceId: string; serviceName: string };
+  Notifications: undefined;
+  BookingSlot: { serviceId: string; serviceName: string; packageId?: string; packageName?: string };
 };
 
 export type HomeStackParamList = SharedRoutes & {
   ServiceCatalog: undefined;
-  BookingSlot: { serviceId: string; serviceName: string };
 };
 
 export type BookingsStackParamList = SharedRoutes & {
@@ -68,9 +74,34 @@ export type EmergencyStackParamList = SharedRoutes & {
   EmergencyBooking: undefined;
 };
 
+// Profile has its own stack so it can push Notifications — as a bare tab
+// screen it had no navigator to push onto.
+export type ProfileStackParamList = SharedRoutes & {
+  CustomerProfile: undefined;
+};
+
+// A customer's booking notifications open the live tracking screen.
+function CustomerNotificationsScreen({ navigation }: any) {
+  return (
+    <NotificationsScreen
+      onOpenBooking={(bookingId) => navigation.navigate("BookingTracking", { bookingId })}
+    />
+  );
+}
+
 function sharedScreens<T extends Record<string, any>>(Stack: ReturnType<typeof createNativeStackNavigator<T>>) {
   return (
     <>
+      <Stack.Screen
+        name={"ServiceDetail" as any}
+        component={ServiceDetailScreen as any}
+        options={({ route }: any) => ({ title: route.params?.serviceName ?? "Service" })}
+      />
+      <Stack.Screen
+        name={"BookingSlot" as any}
+        component={BookingSlotScreen as any}
+        options={{ title: "Schedule" }}
+      />
       <Stack.Screen
         name={"FairPricingBreakdown" as any}
         component={FairPricingBreakdownScreen as any}
@@ -81,6 +112,11 @@ function sharedScreens<T extends Record<string, any>>(Stack: ReturnType<typeof c
       <Stack.Screen name={"Invoice" as any} component={InvoiceScreen as any} options={{ title: "Invoice" }} />
       <Stack.Screen name={"Rating" as any} component={RatingScreen as any} options={{ title: "Rate Your Professional" }} />
       <Stack.Screen name={"Chat" as any} component={ChatScreen as any} options={{ title: "" }} />
+      <Stack.Screen
+        name={"Notifications" as any}
+        component={CustomerNotificationsScreen as any}
+        options={{ title: "Notifications" }}
+      />
       <Stack.Screen
         name={"LocationPicker" as any}
         component={LocationPickerScreen as any}
@@ -103,11 +139,6 @@ function HomeStackNavigator() {
         name="ServiceCatalog"
         component={ServiceCatalogScreen}
         options={{ headerShown: false }}
-      />
-      <HomeStack.Screen
-        name="BookingSlot"
-        component={BookingSlotScreen}
-        options={{ title: "Schedule" }}
       />
       {sharedScreens(HomeStack)}
     </HomeStack.Navigator>
@@ -142,6 +173,20 @@ function EmergencyStackNavigator() {
   );
 }
 
+const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
+function ProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator screenOptions={screenOptions}>
+      <ProfileStack.Screen
+        name="CustomerProfile"
+        component={CustomerProfileScreen}
+        options={{ headerShown: false }}
+      />
+      {sharedScreens(ProfileStack)}
+    </ProfileStack.Navigator>
+  );
+}
+
 export default function CustomerNavigator() {
   return (
     <BottomTabs
@@ -149,7 +194,7 @@ export default function CustomerNavigator() {
         { key: "home", label: "Home", icon: "home", Screen: HomeStackNavigator },
         { key: "bookings", label: "Bookings", icon: "calendar", Screen: BookingsStackNavigator },
         { key: "emergency", label: "Emergency", icon: "alert-circle", Screen: EmergencyStackNavigator },
-        { key: "profile", label: "Profile", icon: "person", Screen: CustomerProfileScreen },
+        { key: "profile", label: "Profile", icon: "person", Screen: ProfileStackNavigator },
       ]}
     />
   );

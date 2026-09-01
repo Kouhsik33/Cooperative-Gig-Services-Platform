@@ -1,26 +1,42 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { HomeStackParamList } from "../../navigation/CustomerNavigator";
 import { createBooking, createEmergencyBooking } from "../../api/bookings";
-import type { Booking } from "../../api/types";
-import { formatCurrency } from "../../lib/format";
-import { Badge, Button, Card, ErrorState, LoadingState, PriceBreakdown } from "../../components/ui";
-import { colors, spacing, type } from "../../theme/tokens";
+import { getService } from "../../api/services";
+import type { ServiceDetail, WageSplitPreview } from "../../api/types";
+import { formatCurrency, formatDateTime } from "../../lib/format";
+import {
+  Badge,
+  Button,
+  Card,
+  ErrorState,
+  FormScreen,
+  PriceBreakdown,
+  SkeletonList,
+} from "../../components/ui";
+import { colors, radius, spacing, type } from "../../theme/tokens";
 
 type Props = NativeStackScreenProps<HomeStackParamList, "FairPricingBreakdown">;
 
-// Customer journey step 2 (Part B) — Requirement 12, the single most
-// important screen in the app: total price, worker's share (₹ and %),
-// federation fee, welfare contribution. A deliberate UI moment before
-// payment, not an afterthought on a receipt. Also covers the emergency
-// case (Requirement 8): surge shown explicitly, entirely credited to
-// the worker's share.
+// The booking confirmation screen — Requirement 12, and the single most
+// important moment in the customer journey: exactly what is being booked,
+// exactly what it costs, and exactly how that money is split, all before
+// anything is committed.
+//
+// This screen used to create the booking in a mount effect and *then* show
+// a confirm button. That meant simply opening it produced a live REQUESTED
+// booking broadcast to every eligible worker — a customer who backed out
+// left workers chasing a job nobody wanted. Now it renders a server-computed
+// preview and only creates the booking when the customer actually confirms,
+// so dispatch fires at the moment the customer commits.
 export default function FairPricingBreakdownScreen({ route, navigation }: Props) {
   const { t, i18n } = useTranslation();
   const {
     serviceId,
+    packageId,
+    packageName,
     scheduledAt,
     latitude,
     longitude,
@@ -32,58 +48,107 @@ export default function FairPricingBreakdownScreen({ route, navigation }: Props)
     contactPhone,
     instructions,
   } = route.params;
-  const [booking, setBooking] = useState<Booking | null>(null);
+
+  const [service, setService] = useState<ServiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Dispatch model (§8) — this call creates the booking with no worker
-    // at all; the backend broadcasts it to every eligible worker and the
-    // customer finds out who accepted on BookingTrackingScreen.
-    const create = isEmergency ? createEmergencyBooking : createBooking;
-    create({
-      serviceId,
-      scheduledAt,
-      latitude,
-      longitude,
-      serviceAddressLine,
-      serviceLandmark,
-      servicePincode,
-      contactName,
-      contactPhone,
-      instructions,
-    })
-      .then(setBooking)
-      .catch(() => setError(t("fairPricing.loadError")))
+  const load = useCallback(() => {
+    setLoading(true);
+    getService(serviceId, latitude, longitude, servicePincode)
+      .then((data) => {
+        setService(data);
+        setLoadFailed(false);
+      })
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceId, scheduledAt, latitude, longitude, isEmergency]);
+  }, [serviceId, latitude, longitude, servicePincode]);
 
-  if (loading) return <LoadingState />;
-  if (error || !booking) return <ErrorState message={error ?? ""} />;
+  useEffect(load, [load]);
+
+  async function confirm() {
+    setConfirming(true);
+    setConfirmError(null);
+    try {
+      const create = isEmergency ? createEmergencyBooking : createBooking;
+      const booking = await create({
+        serviceId,
+        packageId,
+        scheduledAt,
+        latitude,
+        longitude,
+        serviceAddressLine,
+        serviceLandmark,
+        servicePincode,
+        contactName,
+        contactPhone,
+        instructions,
+      });
+      // Replace rather than push: going "back" to a confirmation screen for
+      // a booking that now exists would offer to create it a second time.
+      navigation.replace("Checkout", { bookingId: booking.id });
+    } catch {
+      setConfirmError(t("fairPricing.createError"));
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  if (loading) return <SkeletonList count={3} variant="row" />;
+  if (loadFailed || !service) {
+    return <ErrorState message={t("fairPricing.loadError")} onRetry={load} retryLabel={t("common.retry")} />;
+  }
 
   const money = (n: number) => formatCurrency(n, i18n.language);
+  const chosen = packageId ? service.packages?.find((p) => p.id === packageId) : null;
+
+  // Server-computed by the same computeWageSplit the booking will use, so
+  // what is shown here and what is charged cannot diverge.
+  const preview: WageSplitPreview | null = chosen
+    ? isEmergency
+      ? chosen.pricePreview.emergency
+      : chosen.pricePreview.standard
+    : isEmergency
+    ? service.pricePreview?.emergency ?? null
+    : service.pricePreview?.standard ?? null;
+
+  if (!preview) {
+    return <ErrorState message={t("fairPricing.loadError")} onRetry={load} retryLabel={t("common.retry")} />;
+  }
+
+  const address = [serviceAddressLine, serviceLandmark, servicePincode].filter(Boolean).join(", ");
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {booking.isEmergency && (
-        <Badge label="Emergency booking" tone="error" />
-      )}
+    <FormScreen contentContainerStyle={styles.container}>
+      {isEmergency && <Badge label={t("fairPricing.emergencyBadge")} tone="error" />}
       <Text style={styles.title}>{t("fairPricing.title")}</Text>
       <Text style={styles.subtitle}>
-        {booking.isEmergency
-          ? "Your emergency premium goes entirely to the worker."
-          : "This is included within the price you pay — nothing extra."}
+        {isEmergency ? t("fairPricing.emergencySubtitle") : t("fairPricing.standardSubtitle")}
       </Text>
+
+      {/* What is actually being booked. Previously this screen showed only
+          numbers, so the customer had to trust that the price belonged to
+          the service and slot they had chosen. */}
+      <Card style={styles.card}>
+        <Text style={styles.sectionLabel}>{t("fairPricing.summary")}</Text>
+        <Text style={styles.serviceName}>{service.name}</Text>
+        {(chosen?.name ?? packageName) && (
+          <Text style={styles.packageName}>{chosen?.name ?? packageName}</Text>
+        )}
+        <SummaryRow label={t("fairPricing.when")} value={formatDateTime(scheduledAt, i18n.language)} />
+        {address ? <SummaryRow label={t("fairPricing.where")} value={address} /> : null}
+      </Card>
 
       <Card style={styles.card}>
         <PriceBreakdown
-          totalAmount={booking.totalAmount}
-          workerShare={booking.workerShare}
-          federationFee={booking.federationFee}
-          welfareContribution={booking.welfareContribution}
-          emergencyBonus={booking.emergencyBonus}
-          isEmergency={booking.isEmergency}
+          totalAmount={preview.totalAmount}
+          workerShare={preview.workerShare}
+          federationFee={preview.federationFee}
+          welfareContribution={preview.welfareContribution}
+          emergencyBonus={preview.emergencyBonus}
+          isEmergency={!!isEmergency}
           money={money}
           labels={{
             totalPrice: t("fairPricing.totalPrice"),
@@ -91,28 +156,38 @@ export default function FairPricingBreakdownScreen({ route, navigation }: Props)
             federationFee: t("fairPricing.federationFee"),
             welfareContribution: t("fairPricing.welfareContribution"),
             emergencyBonus: t("fairPricing.emergencyBonus"),
-            emergencyBonusNote: `100% of this ${money(
-              booking.emergencyBonus
-            )} ${t("fairPricing.emergencyBonusNote")}`,
+            emergencyBonusNote: `100% of this ${money(preview.emergencyBonus)} ${t(
+              "fairPricing.emergencyBonusNote"
+            )}`,
           }}
         />
       </Card>
 
       <View style={styles.trustNote}>
-        <Text style={styles.trustNoteText}>
-          Federation fee and welfare contribution are cooperative-owned — not
-          platform profit.
-        </Text>
+        <Text style={styles.trustNoteText}>{t("fairPricing.coopNote")}</Text>
       </View>
 
-      <Text style={styles.findingNote}>Find a professional for you — no need to pick one yourself.</Text>
+      <Text style={styles.findingNote}>{t("fairPricing.dispatchNote")}</Text>
+
+      {confirmError && <Text style={styles.error}>{confirmError}</Text>}
 
       <Button
-        label={t("fairPricing.confirmAndPay")}
-        onPress={() => navigation.navigate("Checkout", { bookingId: booking.id })}
+        label={confirming ? t("fairPricing.creating") : t("fairPricing.confirmBooking")}
+        onPress={confirm}
+        loading={confirming}
+        disabled={confirming}
         style={styles.button}
       />
-    </ScrollView>
+    </FormScreen>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -121,12 +196,25 @@ const styles = StyleSheet.create({
   title: { ...type.h1, color: colors.textPrimary, marginTop: spacing.sm },
   subtitle: { ...type.body, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },
   card: { marginBottom: spacing.lg },
+  sectionLabel: { ...type.caption, color: colors.textMuted, marginBottom: spacing.xs },
+  serviceName: { ...type.h3, color: colors.textPrimary },
+  packageName: { ...type.smallMedium, color: colors.primaryDark, marginTop: 2 },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginTop: spacing.md,
+    gap: spacing.md,
+  },
+  summaryLabel: { ...type.small, color: colors.textSecondary },
+  summaryValue: { ...type.small, color: colors.textPrimary, flex: 1, textAlign: "right" },
   trustNote: {
     backgroundColor: colors.primaryLight,
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: spacing.md,
   },
   trustNoteText: { ...type.small, color: colors.primaryDark },
   findingNote: { ...type.caption, color: colors.textMuted, textAlign: "center", marginTop: spacing.lg },
+  error: { ...type.small, color: colors.error, textAlign: "center", marginTop: spacing.md },
   button: { marginTop: spacing.md },
 });

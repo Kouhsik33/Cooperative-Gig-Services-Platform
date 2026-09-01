@@ -7,8 +7,11 @@ import type { WorkerWelfare } from "../../api/workers";
 import { formatCurrency, formatDate } from "../../lib/format";
 import { Card, EmptyState, ErrorState, LoadingState, WelfareCard } from "../../components/ui";
 import { colors, spacing, type } from "../../theme/tokens";
+import { icons, iconSize } from "../../theme/icons";
+import { Ionicons } from "@expo/vector-icons";
 
-const BENEFITS = ["Health support", "Insurance", "Emergency assistance", "Family support", "Training"];
+// Stable keys; the visible label is translated at render.
+const BENEFITS = ["health", "insurance", "emergency", "family", "training"] as const;
 
 // Worker Welfare tab (Part B) — Requirement 7. Dedicated, first-class
 // screen: welfare fund contribution total, per-job contribution log,
@@ -50,7 +53,7 @@ export default function MyWelfareScreen() {
         <View>
           <Text style={styles.title}>{t("myWelfare.title")}</Text>
           <Text style={styles.tagline}>
-            Every service you complete strengthens the cooperative safety net.
+            {t("myWelfare.strengthenNote")}
           </Text>
 
           <WelfareCard
@@ -60,27 +63,30 @@ export default function MyWelfareScreen() {
 
           <Card style={styles.insuranceCard}>
             <View style={styles.insuranceHeader}>
-              <Text style={styles.insuranceTitle}>Insurance</Text>
+              <Text style={styles.insuranceTitle}>{t("myWelfare.insurance")}</Text>
               {welfare.insuranceStatus === "ACTIVE" && (
-                <Text style={styles.insuranceActive}>✓ Coverage active</Text>
+                <View style={styles.insuranceRow}>
+            <Ionicons name={icons.verified} size={iconSize.sm} color={colors.success} />
+            <Text style={styles.insuranceActive}>{t("myWelfare.coverageActive")}</Text>
+          </View>
               )}
             </View>
             <View style={styles.insuranceRow}>
-              <InsuranceStat label="Coverage" value="₹2,00,000" />
-              <InsuranceStat label="Valid until" value="31 Mar 2027" />
+              <InsuranceStat label={t("myWelfare.coverage")} value="₹2,00,000" />
+              <InsuranceStat label={t("myWelfare.validUntil")} value="31 Mar 2027" />
             </View>
-            <Text style={styles.insuranceProvider}>Provider: Cooperative Welfare Program</Text>
+            <Text style={styles.insuranceProvider}>{t("myWelfare.provider")}</Text>
             <Text style={styles.insuranceDemoNote}>
-              Demo coverage terms — not a live insurance policy.
+              {t("myWelfare.demoTerms")}
             </Text>
           </Card>
 
           <Card style={styles.benefitsCard}>
-            <Text style={styles.sectionTitle}>Benefits</Text>
+            <Text style={styles.sectionTitle}>{t("myWelfare.benefits")}</Text>
             <View style={styles.benefitsGrid}>
               {BENEFITS.map((b) => (
                 <View key={b} style={styles.benefitPill}>
-                  <Text style={styles.benefitText}>{b}</Text>
+                  <Text style={styles.benefitText}>{t(`myWelfare.benefit_${b}`)}</Text>
                 </View>
               ))}
             </View>
@@ -89,7 +95,7 @@ export default function MyWelfareScreen() {
           <Text style={styles.sectionTitle}>{t("myWelfare.transactionHistory")}</Text>
         </View>
       }
-      ListEmptyComponent={<EmptyState icon="🤝" title={t("myWelfare.noTransactions")} />}
+      ListEmptyComponent={<EmptyState icon={icons.welfare} title={t("myWelfare.noTransactions")} />}
       renderItem={({ item }) => (
         <View style={styles.txRow}>
           <View>

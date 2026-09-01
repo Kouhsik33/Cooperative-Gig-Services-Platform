@@ -158,12 +158,10 @@ needed additions — not errors or workarounds:
 ## Known gaps (surfaced, not silently patched)
 
 - **No PostGIS geography column.** Worker/Booking store plain `Float`
-  lat/lng, so `getNearbyWorkers` computes distance with the Haversine
-  formula in application code, not `ST_Distance`. Functionally equivalent
-  at this scale; revisit if geo queries need to move into SQL.
-  `getNearbyWorkers` also still can't apply "same-federation/society
-  workers surfaced first" (Requirement 4) — the schema has no
-  customer↔federation relation, only worker↔society↔federation.
+  lat/lng, so distance is computed with the Haversine formula in
+  application code (`matching.service.ts`), not `ST_Distance`.
+  Functionally equivalent at this scale; revisit if geo queries need to
+  move into SQL.
 - **Razorpay test credentials aren't configured.** `RAZORPAY_KEY_ID`/
   `_SECRET` are empty by default, so `createOrder` falls back to a mock
   order (`isMock: true` in the response) and `POST /payments/simulate-callback`
@@ -484,11 +482,609 @@ AVAILABLE/OFFLINE `Switch` toggle.
 - Decline is client-only (locally dismisses the card for that session) —
   no backend call, since there's no per-worker-request row to update;
   the booking simply stays REQUESTED for every other eligible worker.
-- No background job expires a REQUESTED booking that nobody ever
-  accepts — it stays searchable indefinitely until the customer cancels
-  or taps "Keep searching" again. `EXPIRED` exists in the enum but
-  nothing transitions a booking into it yet.
+- ~~No background job expires a REQUESTED booking that nobody ever
+  accepts.~~ **Fixed in the product-reimagination phase below** —
+  `bookingExpiry.service.ts` now sweeps them into `EXPIRED`.
 - `getDispatchAnalytics`/geo-scoping for still-searching bookings is a
   best-effort pincode join, not a real FK, because an unassigned booking
   has no worker (hence no federation) to scope through yet — see the
   schema comment on `Booking.eligibleWorkerCount`.
+
+
+## Product-reimagination phase — one matching engine, real impact data,
+## notifications, service detail, lifecycle completion (done)
+
+A follow-up directive ("PRODUCT REIMAGINATION + FULL IMPLEMENTATION")
+asked for a full audit against the SIH statement plus modern
+commerce/delivery/mobility UX patterns, then execution in P0→P3 order.
+The audit found the backend fundamentally sound — the dispatch race, OTP
+lifecycle and Part F split were all correct — so this phase is about
+**integrity, consolidation and unbuilt surface**, not rewriting.
+
+### P0 — correctness (done, verified against live data)
+
+- **Two divergent implementations of dispatch eligibility, now one.**
+  `dispatch.service.ts`'s `findEligibleWorkers` (socket broadcast) and
+  `booking.controller.ts`'s `listIncomingRequests` (worker's REST feed)
+  applied the pincode rule differently. Concretely: when a booking's
+  pincode matched no society, the broadcast fell back to a 25 km radius
+  and pushed the job to nearby workers, while the REST feed returned
+  `false` for any worker who *had* a society pincode — so a worker got
+  the push and then could not find the job in their own list.
+  Root cause: the old rule was **collective** ("if ANY worker covers this
+  pincode, only pincode-matchers are eligible"), which cannot be
+  evaluated for one worker in isolation, so every call site holding a
+  single worker had to approximate it — and the approximations disagreed.
+  Fix: new `backend/src/services/matching.service.ts` is the single
+  source of truth, and the rule is now strictly **per-worker**:
+  `verified && AVAILABLE && skill && (pincodeMatch || within 25km)`.
+  Pincode did not stop mattering — it moved from a hard gate to the
+  dominant ranking signal (40 of 100 points in `scoreWorker`), which is
+  what Requirement 4 actually asks for. Verified: a `411999` booking
+  (matching no society) now appears in the worker's feed; an in-area
+  `411038` booking scores 90 vs 50 and ranks first.
+- **`acceptBooking` had a TOCTOU race letting one worker hold two jobs.**
+  The atomic `updateMany` claim protected "one booking → one worker", but
+  the worker's availability was only a **read**, and BUSY was set *after*
+  the claim. Two accepts by the same worker on two different bookings
+  both passed the read, both claimed their own booking, and both set
+  BUSY. Not hypothetical — worker `9000000121` was found holding two live
+  bookings in this database. Fix: the worker's `AVAILABLE → BUSY`
+  transition is now itself a conditional `updateMany` taken *before* the
+  booking claim, released back to AVAILABLE if that claim then loses.
+  Worker lock first (not booking first) because releasing a worker is
+  purely local, whereas un-claiming a booking would race every other
+  accepter. Verified: 6 concurrent accepts by one worker across 2
+  bookings → exactly 1 success, worker holds exactly 1 live booking.
+  (The original booking-level race is unaffected — re-verified at 12
+  concurrent accepts → 1 × 200, 11 × 409.)
+- **Fabricated impact stats removed.** The customer home screen shipped
+  hardcoded literals — "1,248 workers supported", "₹8.4L welfare",
+  "18,420 services completed" — as the centrepiece of the cooperative
+  trust claim. New `GET /api/impact` computes all of it from real rows
+  (currently 21 verified workers / 134 completed / ₹1,881 welfare /
+  87.1% avg worker share). The card renders only once the data arrives,
+  so it can never show a placeholder.
+- **Dead code removed.** `GET /workers/nearby` + `getNearbyWorkers` had
+  zero callers since `WorkerSearchScreen` was deleted in the dispatch
+  phase. Its rating-tiebreak logic was also the *only* consumer of
+  `Worker.ratingAvg` in matching, so Requirement 6's "rating feeds match
+  ranking" had silently become false. Rating is now a real 20-point
+  factor in `scoreWorker`.
+- **Service coverage unified.** `service.controller.ts` had a third copy
+  of "is a worker near here"; it now calls the shared `isEligible`, with
+  `loadCandidates(..., { includeUnavailable: true })` marking the one
+  intentional difference (a service is still *offered* when local workers
+  are momentarily mid-job).
+- **Indexes added** for every hot path (Phase 33): `Worker
+  [verificationStatus, availability]` / `[societyId]`, `Booking
+  [status, workerId]` / `[customerId, createdAt]` / `[workerId,
+  createdAt]` / `[workerId, assignedAt]` / `[servicePincode]` /
+  `[scheduledAt]`, `Society [pincode]`, `CustomerAddress [customerId]`,
+  `WelfareFundTransaction [workerId, createdAt]` / `[welfareFundId,
+  createdAt]`, `Service [category]`.
+
+### Fair allocation (Requirement 12 / §40)
+
+`scoreWorker` is an explainable 0-100 score over named factors —
+pincode 40, distance 30, rating 20, workload 10 — rather than tuned magic
+constants, so a new signal (reliability, acceptance rate, certification
+depth) is added by extending one function. Two deliberate calls:
+unrated workers score at the *midpoint* rather than zero (otherwise a new
+worker could never rank well enough to get a first job), and
+`jobsToday` pushes an already-busy worker down so work spreads across the
+society instead of concentrating on whoever wins every other axis.
+**Not built:** staged/tiered broadcast (offer to the top N first, widen
+after a delay). Every eligible worker is notified at once, because
+first-accept-wins *is* the fairness mechanism here — withholding a
+request from lower-ranked workers would quietly turn ranking into
+rationing. Rank is carried in the payload so feeds can order by it.
+
+### P1 — required functionality (in progress)
+
+- **Notifications, end to end (§19).** New `Notification` model +
+  `notification.service.ts` + `GET/POST /api/notifications`. Persisted
+  first, pushed second: a customer whose phone was locked when their
+  professional arrived is exactly the one who most needs the record, so
+  a failed socket emit never fails the write. Wired into every lifecycle
+  transition — booking confirmed / no worker found, new request to each
+  eligible worker, assigned, on the way, arrived, started, completed,
+  earnings + welfare credited, payment received, rating reminder,
+  cancellation (to the party who *didn't* cancel, plus the federation
+  when a worker drops an assigned job), reschedule, and the two
+  operations events an admin can act on (emergency, unassigned).
+  Every socket now also joins a `user:<userId>` room — the existing role
+  rooms address someone by what they are *for a booking*, notifications
+  are per-person. Mobile: `NotificationContext` (single source for the
+  badge and the list), `NotificationsScreen`, `NotificationBell` on both
+  home screens, deep-linking to `BookingTracking` (customer) or
+  `JobDetail` (worker). Verified end to end: a full lifecycle run
+  produced 9 customer + 3 worker notifications in the right order, and
+  cross-user isolation holds (marking another user's notification → 404).
+- **Service detail page (§12).** `Service` gained `description`,
+  `durationMin/MaxMinutes`, `inclusions`, `exclusions`; new
+  `GET /services/:id` returns those plus `completedCount`, `ratingAvg`,
+  `ratingCount` and recent reviews. This closed a real gap: **ratings
+  were write-only** — collected on every completed booking, averaged into
+  `Worker.ratingAvg`, and then read by nothing a customer could see.
+  New `ServiceDetailScreen` (sticky CTA, inclusions/exclusions, real
+  reviews, cooperative trust block) sits between the catalog and the slot
+  picker. `ratingAvg` is `null` rather than `0` when nothing is rated —
+  an unrated service and a 0-star service are very different claims.
+- **Cancellation accountability + rescheduling + expiry (§18).**
+  `Booking` gained `cancellationReason` / `cancelledByRole` /
+  `cancelledAt` (role taken from the authenticated actor, never the
+  request body) and `originalScheduledAt` / `rescheduleCount`. New
+  `POST /bookings/:id/reschedule`, allowed only while `REQUESTED` or
+  `ASSIGNED` — once a worker is `ON_THE_WAY`, moving the slot would
+  strand someone already travelling, so that is a cancel-and-rebook.
+  New `bookingExpiry.service.ts` sweeps stale `REQUESTED` bookings into
+  `EXPIRED` (previously nothing ever produced that enum value, so a
+  booking nobody accepted searched forever).
+
+### New known gaps (surfaced, not silently patched)
+
+- **`prisma/seed.ts` is not idempotent** — it creates rows
+  unconditionally, so re-running it against a populated database
+  duplicates every federation, worker and booking. The service catalog
+  was therefore extracted to `prisma/data/services.ts` (single source of
+  truth) with `prisma/backfill-services.ts` to update content on an
+  existing database without losing the booking history the forecast and
+  welfare ledger are built from.
+- **Booking expiry is an in-process `setInterval`**, not a job queue —
+  fine for one backend process, and the sweep is idempotent, but move it
+  behind a real scheduler before running multi-instance.
+- **Decline is still client-only** (unchanged from the dispatch phase).
+- **Notification delivery is in-app only** — no push (APNs/FCM), no
+  email/SMS. The persistence + fan-out layer is real; the transport to a
+  backgrounded phone is not.
+
+
+### Completion pass — i18n, navigation audit, forecast coherence (done)
+
+Finishing pass over the phase above. Everything below was found by
+re-auditing the working tree, not by trusting the previous session's notes.
+
+**Genuinely dead code removed.** `EmergencyAlertScreen.tsx` was an 18-line
+`TODO(Phase 4)` stub with **zero references anywhere** — superseded by
+JobFeedScreen's inline emergency card. Deleted, along with its now-orphaned
+`worker.emergencyAlertTitle` key. (`ChatScreen`'s low `t()` count turned
+out to be correct, not a gap: it has exactly one user-facing string.)
+
+**i18n finished and verified structurally.** 83 keys → **259 keys, identical
+across en/hi/mr**, with every screen translated (`OnboardingStatusScreen`
+was the last real gap). A verification script asserts three things on every
+run: locale parity, that every literal `t("…")` key exists, and that every
+dynamic key family (`home.why${…}Title`, `bookings.${segment}`,
+`address.label${l}`, skill/step label maps) resolves for all its possible
+values. 27 dead keys (81 entries across three locales) left over from the
+removed password-login and the deleted `WorkerSearchScreen` were pruned.
+
+**i18next pluralization deliberately avoided.** i18next 23 resolves
+`_one`/`_other` through `Intl.PluralRules`, which Hermes ships only
+partially; a missing implementation fails silently by rendering the raw
+key. Explicit `notifiedOne`/`notifiedMany` keys are selected in code
+instead — consistent with `formatCurrency`, which already guards `Intl`.
+
+**Real bugs found and fixed in this pass:**
+- **Infinite spinner on failure** in both lifecycle hubs.
+  `BookingTrackingScreen` and `JobDetailScreen` had no `.catch`: a failed
+  fetch set `loading = false` with `booking` still `null`, and the guard
+  was `if (loading || !booking) return <LoadingState/>` — so the screen
+  span forever, *and* the rejection was unhandled. Both now have an error
+  state with retry. Same missing-catch pattern fixed in `WorkerHomeScreen`,
+  `JobFeedScreen`, `ChatScreen`, and `NotificationContext`. A scan now
+  reports zero unhandled rejections and zero `.then` without `.catch`.
+- **Worker Profile tab's notifications were a dead end.** It registered the
+  bare `NotificationsScreen` with no `onOpenBooking`, so a booking
+  notification tapped there marked itself read and navigated nowhere (the
+  Home/Jobs tabs deep-linked correctly). The Profile stack now uses the
+  same wrapper and carries `JobDetail`/`Chat`.
+- **Duplicate skills in the database.** Worker `9000000506` held
+  `{technician, technician}` — the seed's `pick(skills)` could return the
+  primary skill again. That produced a duplicate React key wherever skills
+  are mapped, and a doubled chip. Fixed at all three layers: the seed
+  excludes the primary from the secondary draw, `createWorker` dedupes at
+  the API boundary (skills/certifications are `String[]` with no DB
+  uniqueness constraint, so no client should be able to persist a
+  duplicate), and the existing row was repaired.
+- **Incoherent AI forecast.** `cleaner` reported *0 predicted bookings*
+  while still recommending *1 worker*. Two causes: Python's banker's
+  rounding made `round(0.5)` = 0 (the same gotcha already documented in
+  this file), and `recommendedWorkers` was derived from `daily_avg`
+  independently of the rounded demand figure shown beside it. Now rounds
+  half-up (matching JS `Math.round`) and staffs zero when demand rounds to
+  zero. Each row also carries `dailyAverage` + a `basis` string
+  ("11 booking(s) in the last 14 days = 0.79/day; at 2 jobs per worker per
+  day"), rendered under the recommendation in `DemandForecastWidget` —
+  master prompt §24's "make the recommendation explainable".
+
+**Home screens completed against the brief.** Customer home was missing
+any view of an in-flight booking; it now surfaces the active booking above
+the catalog (status badge, assigned professional or "finding…", tap to
+track). Worker home was missing the three things a working professional
+most needs: it now leads with an **active-job card**, and adds upcoming-job
+count and the worker's own rating alongside today's jobs/earnings/welfare.
+
+**Design system.** Zero hardcoded colors remain outside `theme/tokens.ts`
+— the `Avatar` placeholder palette was seven hand-copied hex literals that
+were already token values (now `avatarPalette`, derived from `colors`), and
+one stray `rgba(255,255,255,0.15)` became `colors.overlayOnDark`.
+
+**Environment fix:** the repo move to `SIH/UrbanCompanyX/` left
+`ai-service/.venv` with stale absolute shebangs pointing at the old path,
+so `uvicorn` failed with "bad interpreter". Repaired in place. Note the
+ai-service must use **its own** `.env` — `backend/.env`'s `DATABASE_URL`
+carries Prisma's `?schema=public`, which psycopg2 rejects outright.
+
+### Verification run this pass
+
+- `tsc --noEmit` clean: backend, mobile-app, admin-web. `admin-web` Vite
+  build clean. `ai-service` compiles; `/docs` responds 200.
+- Expo/Metro Android bundle succeeds (2.78 MB).
+- **29/29 end-to-end dispatch checks** (`scratchpad/e2e.py`): customer books
+  a service with no worker chosen → 9 simultaneous accepts across 3 workers
+  yield exactly 1 × 200 and 8 × 409, with the *database* confirming one
+  assigned worker → lifecycle transitions, illegal `ARRIVED→COMPLETED`
+  refused → OTP gates (wrong OTP 400, worker reading the customer's OTP
+  403) → completion frees the worker → rating, duplicate rating 409 →
+  Part F split exact.
+- Demo OTP: all **13** demo accounts accept `0000`; a non-demo number is
+  rejected (401). No `0000` exists anywhere in the app's logic — the only
+  frontend occurrence is explanatory text on the login screen.
+- Emergency fairness rule re-verified: base ₹500 → bonus ₹100, fee ₹50 and
+  welfare ₹15 computed off base only, worker ₹535 — the surge reaches the
+  worker intact.
+- All 12 SIH requirements return real data from live endpoints.
+
+**Test harness note:** the first end-to-end script was written in shell and
+produced six spurious failures — nested quoting stripped the braces from
+the JSON bodies (`body: '"otp":""'` in the server log), which looked
+exactly like backend 500s. Rewritten in Python (`scratchpad/e2e.py`); all
+29 checks then passed against unchanged application code. Worth
+remembering before trusting a shell-based API test.
+
+
+## V2 product-excellence pass (done)
+
+Polish pass over a verified-working system. The 29-check dispatch
+regression was the stated baseline and **remained 29/29 throughout**; a
+second suite (`scripts/v2-verify.py`, 34 checks) now guards what V2 added.
+
+### Design system
+
+`theme/tokens.ts` gained **semantic aliases** (`primaryForeground`,
+`accent`, `onPrimarySurface`, `shadowTint`, `skeleton`), a `layout` block
+carrying accessibility invariants (`minTouchTarget: 44`), and a `type.label`
+micro-label. Shadows previously hardcoded `#0A231D` and now read
+`colors.shadowTint`. Zero hardcoded colours remain outside the token file.
+
+New shared components, each replacing per-screen duplication:
+`Skeleton` (Block/Card/Row/List, Animated with `useNativeDriver` so the
+pulse costs nothing on the JS thread while data loads), `BookingTimeline`,
+`TrustBadge`/`TrustList`, `MapPanel`, `RequestCard`. `Card` now forwards
+`accessibilityRole`/`accessibilityLabel` so a tappable card announces
+itself as one action instead of leaking its inner `Text` nodes.
+
+### Backend additions (all additive; no business rule touched)
+
+- `GET /services` now returns `ratingAvg` / `ratingCount` /
+  `completedCount` per service, via **two grouped queries** rather than
+  per-row counts — the catalog renders every service at once, so per-row
+  would be N+1 on the most-loaded screen.
+- `GET /services/:id` returns a `pricePreview` for both standard and
+  emergency, computed by **the same `computeWageSplit` the booking uses**.
+  A hand-rolled preview would be free to drift from what is actually
+  charged, which is the one thing this product cannot get wrong.
+- `GET /bookings/dispatch/incoming` returns expected duration — a worker
+  deciding whether to accept needs to know what they are committing their
+  afternoon to, not only what it pays.
+- `GET /federations/:id/dashboard` returns operations health:
+  `completionRatePercent`, `avgCustomerRating`, `unservedBookings`,
+  `pendingVerification`. Both rates are `null` rather than a flattering
+  default when nothing has finished — an untested completion rate is not a
+  perfect one.
+- `GET /bookings` now includes `rating` and `payment`. **Bug fixed:** the
+  bookings list had no way to tell a rated booking from an unrated one, so
+  it re-prompted for a rating the customer had already given.
+
+### Customer experience
+
+Home leads with location, then search, categories, emergency, the active
+booking, and a real cooperative-impact strip. Service cards read as
+products (rating, completions, duration, price, trust line) and load as
+skeletons rather than a spinner, so layout no longer jumps when data lands.
+Service detail gained **How it works** (the honest answer to "why can't I
+pick my own professional"), a **Where your money goes** split from the
+server preview, FAQs, and an explicit empty state for reviews. The active
+booking screen now leads with a worker card (avatar, verified, rating) over
+a shared connected timeline. Bookings gained an **Active** tab —
+distinguishing "something is happening now" from "merely scheduled" — and
+**Book again**.
+
+### Worker experience
+
+`RequestCard` is now one component used by both Home and the Jobs feed,
+which had already drifted: the two showed different fields and only one was
+translated. Expected earnings lead the card, since knowing the pay *before*
+accepting is the cooperative's whole proposition. `JobDetailScreen` shares
+the customer's timeline component, so the two sides can no longer describe
+the same booking differently.
+
+### Maps — deliberately not faked
+
+`MapPanel` renders the two endpoints it genuinely knows and states its own
+limitation. There is no map provider and no live position stream, so it
+draws **no route and no moving pin**: inventing movement would be the most
+misleading thing this product could do, because a customer would use it to
+decide when to come to the door. Props are already shaped for a real
+provider (two coordinates + status), so swapping one in is a change to that
+file alone.
+
+### AI forecast
+
+Each row now carries `demandLevel`, `trendPercent`, `reason`, and
+`baselineDailyAverage` — comparing the 14-day window against the full
+60-day history behind it (comparing it to itself would make the trend zero
+by construction). The admin widget renders a demand pill plus
+"Demand is 63% above the recent daily average."
+
+### Multilingual
+
+323 keys x 3 locales, in parity, no missing or orphaned keys. A length
+audit found 8 translations exceeding 1.6x their English source; the two
+that sit on CTAs were addressed at the component level — `Button` labels
+now wrap to two centred lines with `adjustsFontSizeToFit`, rather than
+clipping mid-word.
+
+### Accessibility
+
+`Button` carries a 44pt minimum height. A scripted audit found 8 bare
+touchables; 4 wrapped whole cards (fine) and 4 were small text links and
+star controls, which gained `hitSlop` and proper roles — the rating stars
+now expose `accessibilityRole="radio"` with selected state.
+
+### Verification
+
+- `tsc --noEmit` clean x3; admin Vite build clean; ai-service compiles.
+- Expo Android bundle 2.81 MB, clean.
+- `scripts/e2e-verify.py` **29/29** (unchanged baseline).
+- `scripts/v2-verify.py` **34/34** — including a live check that the
+  emergency surge still reaches the worker intact through the new preview
+  endpoint, and that no forecast row predicts zero demand while asking for
+  workers.
+
+### Known limitations
+
+- **Service packages are not modelled.** The brief asks for them; the
+  schema has no package concept, and inventing one in the UI would be
+  hardcoding data to look complete. Left out rather than faked.
+- No live GPS, no map provider, no push notifications (in-app only), and
+  Razorpay is still in mock mode — all unchanged from the previous phase
+  and all requiring external credentials or native modules.
+- Search is still a client-side filter over the loaded catalog; there is no
+  recent/popular-search history (nothing persists searches yet).
+
+
+## V3 product-completion pass (done)
+
+Closes the two gaps V2 explicitly declined to fake, plus a design-system
+correction found by consulting the UI/UX Pro Max skill. Baselines held
+throughout: **e2e 29/29, v2 34/34, v3 40/40**.
+
+### Service packages (the headline V2 gap)
+
+V2 left packages out because the schema had no package concept and
+inventing one in the UI would have been hardcoding data to look complete.
+Now modelled properly.
+
+New `ServicePackage` (name, tier, description, price, duration,
+inclusions, isDefault), `@@unique([serviceId, name])` so the backfill can
+upsert idempotently. `Booking.packageId` is **nullable** — every historical
+booking has none and falls back to `Service.basePrice`, so nothing existing
+broke. 18 packages seeded via `prisma/data/packages.ts`, sharing the
+services.ts pattern; each service's cheapest tier equals its existing
+`basePrice`, which keeps that column truthful as the catalogue's
+"starting from" figure with no second constant to sync.
+
+**Pricing stays server-authoritative.** The client sends a `packageId` and
+never a price; the server resolves the package, rejects one belonging to a
+different service (400) or an unknown id (404), and feeds the resolved
+price into the *same* `computeWageSplit`. There is still exactly one
+implementation of the fairness rule. Verified: Premium ₹949 → fed ₹94.90,
+welfare ₹28.47, worker ₹825.63; emergency surge ₹189.80 reaches the worker
+intact with fee and welfare still computed off the package base.
+
+`GET /services/:id` returns a per-package `pricePreview` (standard and
+emergency), so the app renders the split rather than doing arithmetic.
+
+**Bug found while wiring this:** the invoice printed
+`lineItems.basePrice = service.basePrice`, which became wrong the moment a
+booking was priced off a package. Now derived from the booking's own
+recorded `totalAmount - emergencyBonus` — a service or package can be
+re-priced later, but an invoice must restate what was actually charged.
+
+### Server-side worker decline (the other declared limitation)
+
+Decline was client-only: the card vanished for that session and returned on
+the next load, and the federation had no record. New
+`BookingWorkerResponse` (ACCEPTED/DECLINED, optional reason,
+`@@unique([bookingId, workerId])` so re-declining updates rather than
+stacking). `POST /bookings/:id/decline` records it; the dispatch feed
+excludes that worker's declines permanently.
+
+Critically it **does not touch the booking** — it stays `REQUESTED` and
+every other eligible worker keeps seeing it. All four properties are
+asserted in v3-verify: gone from this worker's feed, persisted, booking
+still REQUESTED, still visible to others, idempotent, one row per worker.
+
+### Design system — emoji removed as structural icons
+
+The UI/UX Pro Max skill flags this as HIGH severity: emoji are
+font-dependent (a "🛠️" renders differently on every OS and Android vendor
+skin), cannot take a colour from the design tokens, and don't scale with
+the type ramp. The app used them throughout — category icons, notification
+types, trust badges, map pins, rating stars, timeline ticks.
+
+New `theme/icons.ts` holds the whole vocabulary: an `IconName` type,
+`iconSize` tokens (xs/sm/md/lg/xl/hero), category and notification maps,
+and named roles. Migrated to Ionicons (already bundled with Expo, already
+used by the tab bar). **Zero emoji remain in any `.tsx`.** Typing
+`ServiceCard.icon` as `IconName` meant the compiler found every remaining
+call site rather than relying on a grep.
+
+Decorative icons carry `accessibilityElementsHidden` so a screen reader
+reads the label, not the glyph beside it.
+
+### Other V3 work
+
+- **Serviceability is now three states, not two** (§16). `coverage` (is
+  the area served at all) and `availableWorkerCount` (can anyone start
+  now) are separate. "Available here — everyone's on a job" is a different
+  message from "not available in this area yet", and the first no longer
+  masquerades as the second.
+- **Safe-area compliance.** `ServiceDetailScreen`'s sticky CTA ignored
+  bottom insets and would sit under the home indicator; it now uses
+  `useSafeAreaInsets`, and the scroll view reserves `layout.stickyBarClearance`
+  so the last card is never trapped behind it.
+- **`ServicePackageCard`** is a real radio group (`accessibilityRole="radio"`,
+  selected state, "n of m" hint) built on `Pressable` per the react-native
+  guidance, with a pressed style that changes colour only — selecting a
+  tier can never shift layout.
+- **Error middleware finished.** It carried a stale `TODO(Phase 1)` and
+  turned every throw into a generic 500. Now classifies Prisma P2025→404,
+  P2002→409, P2003→400, validation→400, supports an explicit `HttpError`,
+  guards `res.headersSent`, and only stack-traces genuine 5xx so real
+  faults aren't buried under mistyped-id noise.
+
+### Security audit (adversarial, in v3-verify)
+
+All refused server-side: worker creating a booking (403), unrelated worker
+reading another's booking (403), worker reading the customer's OTP (403),
+non-customer rating (403), customer reading the admin dashboard (403),
+customer forcing `COMPLETED` (400), unauthenticated access (401), unknown
+packageId (404), cross-service package (400), and a worker without the
+skill accepting (403, booking untouched).
+
+### Concurrency at scale
+
+2, 5, 10 and 20 simultaneous accepts each produce exactly one 200 and one
+assigned worker in the database. With fewer eligible workers than calls,
+each worker fires repeatedly, which also exercises the same-worker
+double-accept guard added earlier.
+
+**Test-harness note:** the first run failed at n=2 and n=5 with *zero*
+winners. That was the test, not the app — it raced electricians against a
+technician booking, so every call was correctly refused by the skill gate.
+Fixed to race skill-matched workers, and the skill gate is now asserted
+explicitly as its own check.
+
+### Verification
+
+- `tsc --noEmit` clean x3; admin Vite build clean; ai-service compiles.
+- Expo Android bundle 2.83 MB, clean.
+- i18n **331 keys x 3 locales**, parity holds, no missing keys.
+- Zero hardcoded colours outside `tokens.ts`; zero emoji icons.
+- Navigation audit: 24 routes, 14 navigate targets, **zero unregistered**.
+
+### Remaining limitations (genuine infrastructure only)
+
+- No live GPS, no route calculation, no map provider — `MapPanel` draws the
+  two endpoints it knows and states its own limitation rather than
+  animating a fake pin.
+- No push notifications (in-app inbox only), no real SMS, Razorpay in mock
+  mode. All require credentials or native modules.
+- Search remains a client-side filter with no persisted recent/popular
+  history.
+
+
+## V4 polish + demo-readiness pass (done)
+
+Polish only — no new features. Baselines held: **e2e 29/29, v2 34/34,
+v3 40/40**.
+
+### The significant bug: bookings created before the customer confirmed
+
+`FairPricingBreakdownScreen` created the booking in a mount effect and
+*then* offered a "Confirm and pay" button. Simply opening the confirmation
+screen produced a live `REQUESTED` booking, broadcast to every eligible
+worker. A customer who backed out left workers chasing a job nobody wanted.
+Reproduced before fixing: opening the screen created a booking broadcast to
+4 workers, and it was still visible in a worker's feed afterwards.
+
+Rewritten to render a **server-computed preview** (the same per-package
+`pricePreview` the detail screen uses) and create the booking only when the
+customer actually taps Confirm — so dispatch fires at the moment of
+commitment. Navigation to Checkout uses `replace`, since going "back" to a
+confirmation screen for a booking that now exists would offer to create it
+twice.
+
+The screen also gained the summary the customer needs to check what they
+are paying for: service name, package, date/time and service address, above
+the split. It previously showed numbers with nothing tying them to the
+booking.
+
+### Keyboard handling (UI/UX Pro Max, HIGH)
+
+Five screens with text inputs rendered a bare `ScrollView`. On a small
+phone the keyboard covered the lower fields *and the submit button*, with
+no way to scroll to them — the address form was literally unfinishable.
+New shared `FormScreen` wraps `KeyboardAvoidingView` + `ScrollView` with
+`keyboardShouldPersistTaps="handled"` (so a first tap activates a button
+instead of only dismissing the keyboard). The iOS/Android `behavior`
+difference lives in that one component.
+
+### Emoji eliminated from the admin too
+
+V3 removed emoji from the mobile app but left the admin using them for
+**sidebar navigation icons** — the skill's worst case. Added `lucide-react`
+(one dependency, for a HIGH-severity rule) and migrated the sidebar, empty
+states, KPI accents and the emergency banner. **Zero emoji remain in either
+app.**
+
+### Localisation completed
+
+36 more hardcoded English strings found and translated — most importantly
+the worker's **entire lifecycle CTA set** ("Start navigating", "I've
+arrived", "Start service", "Complete service") and both OTP prompts, which
+had been English-only in a trilingual product aimed at workers most likely
+to need Hindi/Marathi. Now **393 keys x 3 locales**, parity verified, and a
+scan reports **zero** hardcoded user-visible strings in any `.tsx`.
+
+Note: the earlier scan missed the OTP prompts because its character class
+excluded digits ("4-digit"). Widened, then re-run to zero.
+
+### Other V4 fixes
+
+- **Empty states now offer a recovery path** (skill: "show helpful message
+  and action"). All six previously dead-ended. `EmptyState` gained an
+  optional action; bookings → browse services, saved addresses → add one.
+  Left optional so states with genuinely nothing to do stay uncluttered.
+- **All five admin tables** rendered without a scroll container and would
+  push the page sideways on a tablet. Each now scrolls inside
+  `overflow-x-auto` with a `min-w` that keeps columns legible rather than
+  squashing them.
+- Admin `EmptyState` and `KpiCard` gained typed icon props; decorative
+  icons carry `aria-hidden`.
+
+### Deliberately not done
+
+- **Blanket list memoization.** The skill flags inline `renderItem`, but
+  these lists are virtualized and at most ~60 rows; the brief says optimize
+  only where there is a real problem, and there isn't one here.
+- The worker job screen's CTA state machine was audited and left alone — it
+  already shows exactly one CTA per lifecycle state, and cancel only
+  appears pre-service.
+
+### One test assertion corrected (not weakened)
+
+`v3-verify`'s final check is labelled "no active test bookings left
+behind" but asserted a *global* zero, so it failed whenever any unrelated
+booking was open. Scoped to the suite's own `V3 %` fixtures so it tests
+what its label claims.
+
+### Verification
+
+`tsc` clean x3; admin Vite build clean; ai-service compiles; Expo bundle
+2.84 MB. i18n 393 keys x 3 in parity, zero missing. Zero hardcoded colours.
+Zero emoji icons in either app. Navigation audit clean.

@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
-import { haversineKm } from "../lib/geo";
 
 // Worker — Part E, Requirements 1, 2, 4, 7.
 
@@ -28,12 +27,17 @@ export async function createWorker(req: Request, res: Response) {
       .json({ error: "Worker profile already exists for this user" });
   }
 
+  // Deduplicated at the API boundary: skills/certifications are plain
+  // String[] with no DB uniqueness constraint, and a repeated entry both
+  // renders a duplicated chip and produces a duplicate React key wherever
+  // the list is mapped. The seed had already put {technician,technician}
+  // into the database this way.
   const worker = await prisma.worker.create({
     data: {
       userId: req.user!.id,
       societyId,
-      skills,
-      certifications: certifications ?? [],
+      skills: Array.from(new Set(skills)),
+      certifications: Array.from(new Set(certifications ?? [])),
       latitude,
       longitude,
     },
@@ -130,63 +134,6 @@ export async function updateAvailability(req: Request, res: Response) {
     data: { availability },
   });
   res.json(updated);
-}
-
-// Requirement 4 — nearest-verified-worker matching.
-// NOTE: the schema stores plain lat/lng floats rather than a PostGIS
-// geography column, so distance is computed with the Haversine formula
-// in application code instead of ST_Distance. Same-federation/society
-// prioritization is not applied here — the schema has no
-// customer-to-federation relation to rank against.
-//
-// Requirement 6 — "better-rated workers surfaced higher" is a real sort
-// factor here, not just a displayed number: workers are bucketed into
-// whole-km distance tiers (so matching stays fundamentally
-// distance-driven, per Requirement 4) and ranked by ratingAvg within a
-// tier, with exact distance as the final tiebreaker. A 1km tier width is
-// a judgment call — wide enough for rating to matter among genuinely
-// comparable options, narrow enough that "nearest" still dominates.
-export async function getNearbyWorkers(req: Request, res: Response) {
-  const lat = Number(req.query.lat);
-  const lng = Number(req.query.lng);
-  const skill = typeof req.query.skill === "string" ? req.query.skill : undefined;
-
-  if (Number.isNaN(lat) || Number.isNaN(lng)) {
-    return res.status(400).json({ error: "lat and lng query params are required" });
-  }
-
-  const workers = await prisma.worker.findMany({
-    where: {
-      verificationStatus: "VERIFIED",
-      latitude: { not: null },
-      longitude: { not: null },
-      ...(skill ? { skills: { has: skill } } : {}),
-    },
-    include: {
-      user: { select: { name: true } },
-      society: { include: { federation: true } },
-    },
-  });
-
-  const AVG_SPEED_KMH = 30;
-  const withDistance = workers
-    .map((w) => {
-      const distanceKm = haversineKm(lat, lng, w.latitude!, w.longitude!);
-      return {
-        ...w,
-        distanceKm: Math.round(distanceKm * 10) / 10,
-        etaMinutes: Math.round((distanceKm / AVG_SPEED_KMH) * 60),
-      };
-    })
-    .sort((a, b) => {
-      const tierA = Math.round(a.distanceKm);
-      const tierB = Math.round(b.distanceKm);
-      if (tierA !== tierB) return tierA - tierB;
-      if (b.ratingAvg !== a.ratingAvg) return b.ratingAvg - a.ratingAvg;
-      return a.distanceKm - b.distanceKm;
-    });
-
-  res.json(withDistance);
 }
 
 // Requirement 7 — worker's own welfare fund view.

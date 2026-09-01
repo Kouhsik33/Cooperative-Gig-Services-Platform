@@ -8,6 +8,7 @@ import {
 import { useAuth } from "../store/AuthContext";
 import KpiCard from "../components/KpiCard";
 import EmptyState from "../components/EmptyState";
+import { HandHeart } from "lucide-react";
 
 // Federation Admin journey (Part B) — Requirement 7. Transaction log,
 // filterable by worker.
@@ -62,9 +63,10 @@ export default function WelfareFundLedger() {
       {isLoading || !transactions ? (
         <p className="text-ink-muted">Loading...</p>
       ) : transactions.length === 0 ? (
-        <EmptyState icon="🤝" title="No transactions yet." />
+        <EmptyState Icon={HandHeart} title="No transactions yet." />
       ) : (
-        <table className="w-full rounded-card border border-ink/10 bg-surface text-left text-sm shadow-card">
+        <div className="overflow-x-auto">
+        <table className="w-full rounded-card border border-ink/10 bg-surface text-left text-sm shadow-card min-w-[720px]">
           <thead>
             <tr className="border-b border-ink/10 text-ink-muted">
               <th className="px-4 py-3">Date</th>
@@ -86,6 +88,7 @@ export default function WelfareFundLedger() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

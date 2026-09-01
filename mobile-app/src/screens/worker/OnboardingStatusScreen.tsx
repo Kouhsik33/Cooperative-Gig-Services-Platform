@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../store/AuthContext";
@@ -6,13 +6,15 @@ import { listSocieties, createWorkerProfile } from "../../api/auth";
 import type { SocietyOption } from "../../api/auth";
 import { getServices } from "../../api/services";
 import { DEMO_LOCATION } from "../../lib/location";
-import { Button, Card, Chip, LoadingState, SectionHeader } from "../../components/ui";
+import { Button, Card, Chip, ErrorState, LoadingState, SectionHeader } from "../../components/ui";
 import { colors, radius, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { icons, iconSize } from "../../theme/icons";
 
 const STEPS = [
-  { key: "SUBMITTED", label: "Personal information & skills" },
-  { key: "UNDER_REVIEW", label: "Federation review" },
-  { key: "VERIFIED", label: "Verified professional" },
+  { key: "SUBMITTED", labelKey: "onboarding.stepProfile" },
+  { key: "UNDER_REVIEW", labelKey: "onboarding.stepReview" },
+  { key: "VERIFIED", labelKey: "onboarding.stepVerified" },
 ];
 
 // Worker onboarding step 1 (product-flow update — a WORKER account has
@@ -31,6 +33,7 @@ export default function OnboardingStatusScreen() {
 }
 
 function VerificationStatus({ verificationStatus }: { verificationStatus: string }) {
+  const { t } = useTranslation();
   const currentIndex =
     verificationStatus === "VERIFIED"
       ? 2
@@ -42,24 +45,25 @@ function VerificationStatus({ verificationStatus }: { verificationStatus: string
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Verification Status</Text>
+      <Text style={styles.title}>{t("onboarding.verificationTitle")}</Text>
 
       {currentIndex === -1 ? (
         <Card style={styles.rejectedCard}>
-          <Text style={styles.rejectedText}>
-            Your application needs changes. Your federation admin will contact you with next
-            steps.
-          </Text>
+<Text style={styles.rejectedText}>{t("onboarding.rejected")}</Text>
         </Card>
       ) : (
         <Card>
           {STEPS.map((step, i) => (
             <View key={step.key} style={styles.stepRow}>
               <View style={[styles.stepDot, i <= currentIndex && styles.stepDotDone]}>
-                <Text style={styles.stepDotText}>{i <= currentIndex ? "✓" : i + 1}</Text>
+                {i <= currentIndex ? (
+                  <Ionicons name={icons.included} size={iconSize.sm} color={colors.textInverse} />
+                ) : (
+                  <Text style={styles.stepDotText}>{i + 1}</Text>
+                )}
               </View>
               <Text style={[styles.stepLabel, i <= currentIndex && styles.stepLabelDone]}>
-                {step.label}
+                {t(step.labelKey)}
               </Text>
             </View>
           ))}
@@ -68,21 +72,24 @@ function VerificationStatus({ verificationStatus }: { verificationStatus: string
 
       {currentIndex === 2 && (
         <View style={styles.verifiedBanner}>
-          <Text style={styles.verifiedBannerText}>✓ You are a verified professional</Text>
+          <Text style={styles.verifiedBannerText}>{t("onboarding.verifiedBanner")}</Text>
         </View>
       )}
     </ScrollView>
   );
 }
 
-const SKILL_LABELS: Record<string, string> = {
-  electrician: "Electrician",
-  plumber: "Plumber",
-  caregiver: "Caregiver",
-  cleaner: "Cleaner",
-  driver: "Driver",
-  gardener: "Gardener",
-  technician: "Technician",
+// Maps a backend service category to its translation key. The selected
+// value sent to the API stays the raw category slug — only the label is
+// localised.
+const SKILL_LABEL_KEYS: Record<string, string> = {
+  electrician: "onboarding.skillElectrician",
+  plumber: "onboarding.skillPlumber",
+  caregiver: "onboarding.skillCaregiver",
+  cleaner: "onboarding.skillCleaner",
+  driver: "onboarding.skillDriver",
+  gardener: "onboarding.skillGardener",
+  technician: "onboarding.skillTechnician",
 };
 
 function WorkerSetupForm({
@@ -100,16 +107,25 @@ function WorkerSetupForm({
   const [societyId, setSocietyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const { t } = useTranslation();
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
     Promise.all([getServices(), listSocieties()])
       .then(([services, societyList]) => {
         setCategories(Array.from(new Set(services.map((s) => s.category))));
         setSocieties(societyList);
         setSocietyId(societyList[0]?.id ?? null);
+        setLoadError(false);
       })
+      // Without this the form rendered with no skills and no societies and
+      // no explanation — an unrecoverable dead end for a new worker.
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(load, [load]);
 
   function toggleSkill(skill: string) {
     setSelectedSkills((prev) =>
@@ -119,7 +135,7 @@ function WorkerSetupForm({
 
   async function submit() {
     if (selectedSkills.length === 0 || !societyId) {
-      Alert.alert("Select at least one skill and your society to continue");
+      Alert.alert(t("onboarding.selectRequired"));
       return;
     }
     setSubmitting(true);
@@ -133,8 +149,8 @@ function WorkerSetupForm({
       onSubmitted({ id: worker.id, verificationStatus: worker.verificationStatus });
     } catch (err: any) {
       Alert.alert(
-        "Could not submit your profile",
-        err?.response?.data?.error ?? "Please try again."
+        t("onboarding.submitFailed"),
+        err?.response?.data?.error ?? t("onboarding.tryAgain")
       );
     } finally {
       setSubmitting(false);
@@ -142,28 +158,26 @@ function WorkerSetupForm({
   }
 
   if (loading) return <LoadingState />;
+  if (loadError) return <ErrorState message={t("onboarding.loadError")} onRetry={load} />;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>
-        Tell us what you do and which cooperative society you belong to — a federation admin
-        will review and verify your profile next.
-      </Text>
+<Text style={styles.subtitle}>{t("onboarding.setupSubtitle")}</Text>
 
-      <SectionHeader title="Your skills" subtitle="Select everything that applies" />
+      <SectionHeader title={t("onboarding.yourSkills")} subtitle={t("onboarding.yourSkillsHint")} />
       <View style={styles.chipRow}>
         {categories.map((c) => (
           <Chip
             key={c}
-            label={SKILL_LABELS[c] ?? c}
+            label={SKILL_LABEL_KEYS[c] ? t(SKILL_LABEL_KEYS[c]) : c}
             selected={selectedSkills.includes(c)}
             onPress={() => toggleSkill(c)}
           />
         ))}
       </View>
 
-      <SectionHeader title="Your society" />
+      <SectionHeader title={t("onboarding.yourSociety")} />
       <View style={styles.chipRow}>
         {societies.map((s) => (
           <Chip
@@ -175,8 +189,8 @@ function WorkerSetupForm({
         ))}
       </View>
 
-      <Button label="Submit for verification" onPress={submit} loading={submitting} style={styles.button} />
-      <Button label="Cancel" variant="outline" onPress={onCancel} style={styles.cancelButton} />
+      <Button label={t("onboarding.submit")} onPress={submit} loading={submitting} style={styles.button} />
+      <Button label={t("onboarding.cancel")} variant="outline" onPress={onCancel} style={styles.cancelButton} />
     </ScrollView>
   );
 }

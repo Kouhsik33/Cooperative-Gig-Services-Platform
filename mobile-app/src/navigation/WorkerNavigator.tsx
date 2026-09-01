@@ -6,6 +6,7 @@ import EarningsScreen from "../screens/worker/EarningsScreen";
 import MyWelfareScreen from "../screens/worker/MyWelfareScreen";
 import WorkerProfileScreen from "../screens/worker/WorkerProfileScreen";
 import ChatScreen from "../screens/shared/ChatScreen";
+import NotificationsScreen from "../screens/shared/NotificationsScreen";
 import BottomTabs from "./BottomTabs";
 import { screenOptions } from "./stackStyle";
 
@@ -20,17 +21,39 @@ export type HomeStackParamList = {
   WorkerHome: undefined;
   JobDetail: { bookingId: string };
   Chat: { bookingId: string; otherPartyName: string };
+  Notifications: undefined;
+};
+
+export type ProfileStackParamList = {
+  WorkerProfile: undefined;
+  Notifications: undefined;
+  // A notification opened from the Profile tab must be able to land on the
+  // job it refers to, so this stack needs the same destinations the Home
+  // and Jobs stacks have.
+  JobDetail: { bookingId: string };
+  Chat: { bookingId: string; otherPartyName: string };
 };
 
 export type JobsStackParamList = {
   JobFeed: undefined;
   JobDetail: { bookingId: string };
   Chat: { bookingId: string; otherPartyName: string };
+  Notifications: undefined;
 };
 
 // Re-exported so JobDetailScreen/ChatScreen can share one prop type
 // regardless of which stack (Home or Jobs) rendered them.
-export type WorkerStackParamList = HomeStackParamList & JobsStackParamList;
+export type WorkerStackParamList = HomeStackParamList & JobsStackParamList & ProfileStackParamList;
+
+
+// A worker's booking notifications point at their own job screen.
+function WorkerNotificationsScreen({ navigation }: any) {
+  return (
+    <NotificationsScreen
+      onOpenBooking={(bookingId) => navigation.navigate("JobDetail", { bookingId })}
+    />
+  );
+}
 
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 function HomeStackNavigator() {
@@ -39,6 +62,7 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="WorkerHome" component={WorkerHomeScreen} options={{ headerShown: false }} />
       <HomeStack.Screen name="JobDetail" component={JobDetailScreen} options={{ title: "Job Details" }} />
       <HomeStack.Screen name="Chat" component={ChatScreen} options={{ title: "" }} />
+      <HomeStack.Screen name="Notifications" component={WorkerNotificationsScreen} options={{ title: "Notifications" }} />
     </HomeStack.Navigator>
   );
 }
@@ -50,7 +74,28 @@ function JobsStackNavigator() {
       <JobsStack.Screen name="JobFeed" component={JobFeedScreen} options={{ headerShown: false }} />
       <JobsStack.Screen name="JobDetail" component={JobDetailScreen} options={{ title: "Job Details" }} />
       <JobsStack.Screen name="Chat" component={ChatScreen} options={{ title: "" }} />
+      <JobsStack.Screen name="Notifications" component={WorkerNotificationsScreen} options={{ title: "Notifications" }} />
     </JobsStack.Navigator>
+  );
+}
+
+const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
+function ProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator screenOptions={screenOptions}>
+      <ProfileStack.Screen
+        name="WorkerProfile"
+        component={WorkerProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="Notifications"
+        component={WorkerNotificationsScreen}
+        options={{ title: "Notifications" }}
+      />
+      <ProfileStack.Screen name="JobDetail" component={JobDetailScreen} options={{ title: "Job Details" }} />
+      <ProfileStack.Screen name="Chat" component={ChatScreen} options={{ title: "" }} />
+    </ProfileStack.Navigator>
   );
 }
 
@@ -62,7 +107,7 @@ export default function WorkerNavigator() {
         { key: "jobs", label: "Jobs", icon: "briefcase", Screen: JobsStackNavigator },
         { key: "earnings", label: "Earnings", icon: "cash", Screen: EarningsScreen },
         { key: "welfare", label: "Welfare", icon: "shield-checkmark", Screen: MyWelfareScreen },
-        { key: "profile", label: "Profile", icon: "person", Screen: WorkerProfileScreen },
+        { key: "profile", label: "Profile", icon: "person", Screen: ProfileStackNavigator },
       ]}
     />
   );

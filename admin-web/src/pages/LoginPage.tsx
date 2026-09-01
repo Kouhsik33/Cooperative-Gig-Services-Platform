@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../store/AuthContext";
+import { Handshake } from "lucide-react";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -30,7 +31,7 @@ export default function LoginPage() {
         className="w-full max-w-sm rounded-card border border-ink/10 bg-surface p-8 shadow-card"
       >
         <div className="mb-6 text-center">
-          <span className="text-3xl">🤝</span>
+          <Handshake className="h-9 w-9 text-primary" aria-hidden="true" />
           <h1 className="mt-2 text-xl font-semibold text-ink">Federation Admin</h1>
           <p className="text-sm text-ink-muted">Operations command center</p>
         </div>

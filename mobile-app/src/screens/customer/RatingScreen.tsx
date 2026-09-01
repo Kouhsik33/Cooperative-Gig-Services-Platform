@@ -1,15 +1,25 @@
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
 import type { HomeStackParamList } from "../../navigation/CustomerNavigator";
 import { apiClient } from "../../api/client";
-import { Button } from "../../components/ui";
+import { Button, FormScreen } from "../../components/ui";
 import { colors, radius, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
 
 type Props = NativeStackScreenProps<HomeStackParamList, "Rating">;
 
-const HIGHLIGHTS = ["Professionalism", "Punctuality", "Skill", "Cleanliness", "Communication"];
+// Stable identifiers, not display text: the chosen tags are persisted into
+// the rating comment, so they must not change meaning when the customer
+// switches language.
+const HIGHLIGHTS = [
+  "Professionalism",
+  "Punctuality",
+  "Skill",
+  "Cleanliness",
+  "Communication",
+] as const;
 
 // Customer journey step 5 (Part B) — Requirement 6. Post-job star rating +
 // comment, with micro-copy on how rating affects worker visibility.
@@ -44,18 +54,29 @@ export default function RatingScreen({ route, navigation }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <FormScreen contentContainerStyle={styles.container}>
       <Text style={styles.title}>{t("rating.title")}</Text>
-      <Text style={styles.subtitle}>How was your experience?</Text>
+      <Text style={styles.subtitle}>{t("rating.howWasIt")}</Text>
       <View style={styles.stars}>
         {[1, 2, 3, 4, 5].map((n) => (
-          <TouchableOpacity key={n} onPress={() => setStars(n)}>
-            <Text style={n <= stars ? styles.starFilled : styles.starEmpty}>★</Text>
+          <TouchableOpacity
+            key={n}
+            onPress={() => setStars(n)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: n <= stars }}
+            accessibilityLabel={`${n}`}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={n <= stars ? "star" : "star-outline"}
+              size={38}
+              color={n <= stars ? colors.gold : colors.borderStrong}
+            />
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={styles.sectionLabel}>What went well?</Text>
+      <Text style={styles.sectionLabel}>{t("rating.whatWentWell")}</Text>
       <View style={styles.highlightRow}>
         {HIGHLIGHTS.map((h) => {
           const selected = selectedHighlights.includes(h);
@@ -66,7 +87,7 @@ export default function RatingScreen({ route, navigation }: Props) {
               onPress={() => toggleHighlight(h)}
             >
               <Text style={[styles.highlightText, selected && styles.highlightTextActive]}>
-                {h}
+                {t(`rating.tag${h}`)}
               </Text>
             </TouchableOpacity>
           );
@@ -83,7 +104,7 @@ export default function RatingScreen({ route, navigation }: Props) {
       />
       <Text style={styles.microcopy}>{t("rating.microcopy")}</Text>
       <Button label={t("rating.submit")} onPress={submit} loading={submitting} />
-    </ScrollView>
+    </FormScreen>
   );
 }
 

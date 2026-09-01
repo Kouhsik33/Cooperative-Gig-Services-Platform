@@ -61,11 +61,54 @@ export async function getDashboard(req: Request, res: Response) {
     ]);
   const activeBookings = assignedActiveBookings + searchingBookings;
 
+  // Operations health (master prompt §10 — the admin must be able to see
+  // "where are the problems?", not only "what is happening?").
+  const workerScope = { worker: { society: { federationId } } };
+  const [completedCount, cancelledCount, ratingRows, unservedCount, pendingVerification] =
+    await Promise.all([
+      prisma.booking.count({ where: { ...workerScope, status: "COMPLETED" } }),
+      prisma.booking.count({ where: { ...workerScope, status: "CANCELLED" } }),
+      prisma.rating.findMany({
+        where: { booking: workerScope.worker ? { worker: { society: { federationId } } } : {} },
+        select: { stars: true },
+      }),
+      // Bookings that were broadcast to nobody — the clearest possible
+      // signal of a coverage gap, and the one thing an admin can act on
+      // by reallocating workers.
+      prisma.booking.count({
+        where: {
+          status: "REQUESTED",
+          workerId: null,
+          eligibleWorkerCount: 0,
+          servicePincode: { in: pincodes },
+        },
+      }),
+      prisma.worker.count({
+        where: {
+          society: { federationId },
+          verificationStatus: { in: ["SUBMITTED", "UNDER_REVIEW"] },
+        },
+      }),
+    ]);
+
+  const finished = completedCount + cancelledCount;
+
   res.json({
     totalWorkers,
     activeBookings,
     welfareFundBalance: welfareFund?.balance ?? 0,
     avgWorkerSharePercent: fairness.avgWorkerSharePercent,
+    // null rather than 100 when nothing has finished — an untested
+    // completion rate is not a perfect one.
+    completionRatePercent:
+      finished > 0 ? Math.round((completedCount / finished) * 1000) / 10 : null,
+    avgCustomerRating:
+      ratingRows.length > 0
+        ? Math.round((ratingRows.reduce((a, r) => a + r.stars, 0) / ratingRows.length) * 10) / 10
+        : null,
+    ratingCount: ratingRows.length,
+    unservedBookings: unservedCount,
+    pendingVerification,
   });
 }
 

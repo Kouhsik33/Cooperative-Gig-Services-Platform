@@ -16,6 +16,13 @@ export interface DashboardSummary {
   activeBookings: number;
   welfareFundBalance: number;
   avgWorkerSharePercent: number;
+  /** null until at least one booking has finished — an untested rate is not a perfect one. */
+  completionRatePercent: number | null;
+  avgCustomerRating: number | null;
+  ratingCount: number;
+  /** Bookings broadcast to zero eligible workers — a coverage gap the admin can act on. */
+  unservedBookings: number;
+  pendingVerification: number;
 }
 
 export interface WelfareFund {

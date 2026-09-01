@@ -9,6 +9,8 @@ import { useServiceLocation } from "../../store/LocationContext";
 import { iconForCategory } from "../../lib/categoryIcons";
 import { ErrorState, LoadingState } from "../../components/ui";
 import { colors, radius, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { icons, iconSize } from "../../theme/icons";
 
 type Props = NativeStackScreenProps<EmergencyStackParamList, "EmergencyBooking">;
 
@@ -63,7 +65,7 @@ export default function EmergencyBookingScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.heroCard}>
-        <Text style={styles.heroIcon}>🚨</Text>
+        <Ionicons name={icons.emergency} size={iconSize.xl} color={colors.textInverse} style={styles.heroIcon} />
         <Text style={styles.title}>{t("emergency.title")}</Text>
         <Text style={styles.subtitle}>{t("emergency.subtitle")}</Text>
         <View style={styles.trustRow}>
@@ -74,9 +76,9 @@ export default function EmergencyBookingScreen({ navigation }: Props) {
       </View>
 
       <TouchableOpacity style={styles.locationRow} onPress={() => navigation.navigate("LocationPicker")}>
-        <Text style={styles.locationIcon}>📍</Text>
+        <Ionicons name={icons.location} size={iconSize.md} color={colors.textInverse} style={styles.locationIcon} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.locationLabel}>Confirm location</Text>
+          <Text style={styles.locationLabel}>{t("customer.confirmLocation")}</Text>
           <Text style={styles.locationValue}>{location.label} — {location.line1}</Text>
         </View>
         <Text style={styles.locationChange}>Change</Text>
@@ -84,7 +86,7 @@ export default function EmergencyBookingScreen({ navigation }: Props) {
 
       {error && <ErrorState message={error} />}
 
-      <Text style={styles.sectionTitle}>Select a service</Text>
+      <Text style={styles.sectionTitle}>{t("customer.selectService")}</Text>
       <FlatList
         data={services}
         keyExtractor={(item) => item.id}
@@ -125,7 +127,7 @@ const styles = StyleSheet.create({
   },
   trustRow: {
     marginTop: spacing.lg,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    backgroundColor: colors.overlayOnDark,
     borderRadius: radius.md,
     padding: spacing.md,
   },

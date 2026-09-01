@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   ViewStyle,
 } from "react-native";
-import { colors, radius, spacing, type } from "../../theme/tokens";
+import { colors, layout, radius, spacing, type } from "../../theme/tokens";
 
 interface Props {
   label: string;
@@ -37,7 +37,17 @@ export default function Button({
       {loading ? (
         <ActivityIndicator color={variant === "outline" ? colors.primary : colors.textInverse} />
       ) : (
-        <Text style={[styles.label, TEXT_STYLES[variant]]}>{label}</Text>
+        <Text
+          style={[styles.label, TEXT_STYLES[variant]]}
+          numberOfLines={2}
+          // Hindi/Marathi labels run up to ~2x the English width; allowing
+          // two centred lines is what keeps a CTA readable instead of
+          // truncating it mid-word.
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+        >
+          {label}
+        </Text>
       )}
     </TouchableOpacity>
   );
@@ -47,12 +57,15 @@ const styles = StyleSheet.create({
   base: {
     borderRadius: radius.md,
     paddingVertical: spacing.md + 2,
+    paddingHorizontal: spacing.md,
+    // Accessibility floor (WCAG 2.5.5 / iOS HIG) rather than a look.
+    minHeight: layout.minTouchTarget,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
   },
   disabled: { opacity: 0.5 },
-  label: { ...type.bodyMedium },
+  label: { ...type.bodyMedium, textAlign: "center", flexShrink: 1 },
 });
 
 const VARIANT_STYLES: Record<NonNullable<Props["variant"]>, ViewStyle> = {

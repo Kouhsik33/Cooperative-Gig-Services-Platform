@@ -64,17 +64,17 @@ export default function CheckoutScreen({ route, navigation }: Props) {
       {order.isMock && <Text style={styles.mockNotice}>{t("checkout.mockNotice")}</Text>}
 
       <Card style={styles.summaryCard}>
-        <Text style={styles.summaryLabel}>Booking summary</Text>
+        <Text style={styles.summaryLabel}>{t("checkout.bookingSummary")}</Text>
         <View style={styles.row}>
           <Text style={styles.label}>{t("checkout.amountDue")}</Text>
           <Text style={styles.value}>{money(order.amount / 100)}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.smallLabel}>Worker welfare (included)</Text>
+          <Text style={styles.smallLabel}>{t("checkout.welfareIncluded")}</Text>
           <Text style={styles.smallValue}>{money(order.breakdown.welfareContribution)}</Text>
         </View>
         <View style={styles.rowLast}>
-          <Text style={styles.smallLabel}>Federation contribution (included)</Text>
+          <Text style={styles.smallLabel}>{t("checkout.federationIncluded")}</Text>
           <Text style={styles.smallValue}>{money(order.breakdown.federationFee)}</Text>
         </View>
       </Card>
@@ -83,7 +83,7 @@ export default function CheckoutScreen({ route, navigation }: Props) {
         <>
           <Text style={styles.successNotice}>{t("checkout.simulateSuccess")}</Text>
           <Button
-            label="Track booking"
+            label={t("checkout.trackBooking")}
             onPress={() => navigation.navigate("BookingTracking", { bookingId })}
             style={styles.button}
           />
