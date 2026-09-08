@@ -39,20 +39,20 @@ export default function BottomTabs({ tabs }: { tabs: TabDef[] }) {
   return (
     <TabSwitchContext.Provider value={switchTo}>
       <View style={styles.container}>
-        <View style={styles.content}>
-          {tabs.map((tab) => {
-            if (!visited.has(tab.key)) return null;
-            const Screen = tab.Screen;
-            return (
-              <View
-                key={tab.key}
-                style={[StyleSheet.absoluteFill, tab.key !== active && styles.hidden]}
-              >
-                <Screen />
-              </View>
-            );
-          })}
-        </View>
+       <View style={styles.content}>
+        {(() => {
+          const activeTab = tabs.find((tab) => tab.key === active);
+          if (!activeTab) return null;
+
+          const Screen = activeTab.Screen;
+
+          return (
+            <View style={StyleSheet.absoluteFill}>
+              <Screen />
+            </View>
+          );
+        })()}
+      </View>
         <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
           {tabs.map((tab) => {
             const isActive = tab.key === active;

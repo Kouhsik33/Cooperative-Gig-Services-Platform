@@ -9,4 +9,4 @@
 // This URL is only valid for the lifetime of the current `cloudflared`
 // process (it changes every time the tunnel is restarted) — update it
 // here whenever the tunnel gets re-established with a new hostname.
-export const BACKEND_URL = "https://spokesman-gave-intent-msgid.trycloudflare.com";
+export const BACKEND_URL = "https://appointments-jacket-subjects-ericsson.trycloudflare.com";
