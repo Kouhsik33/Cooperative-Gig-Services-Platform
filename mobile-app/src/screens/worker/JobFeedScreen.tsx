@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { JobsStackParamList } from "../../navigation/WorkerNavigator";
 import { acceptBooking, declineBooking, listIncomingRequests, listMyBookings } from "../../api/bookings";
@@ -66,9 +67,13 @@ export default function JobFeedScreen({ navigation }: Props) {
     }
   }, [loadIncoming, loadMyJobs]);
 
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+  // Reload whenever the feed regains focus (e.g. back from JobDetail, or
+  // switching tabs) — the socket handles live changes while it's open.
+  useFocusEffect(
+    useCallback(() => {
+      loadAll();
+    }, [loadAll])
+  );
 
   useEffect(() => {
     const socket = getSocket();

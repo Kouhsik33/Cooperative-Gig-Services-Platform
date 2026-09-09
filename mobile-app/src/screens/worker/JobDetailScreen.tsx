@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { WorkerStackParamList } from "../../navigation/WorkerNavigator";
 import {
+  acceptBooking,
+  declineBooking,
   getBookingById,
   requestCompletion,
   updateBookingStatus,
@@ -11,7 +13,9 @@ import {
 } from "../../api/bookings";
 import type { Booking } from "../../api/types";
 import { formatCurrency, formatDateTime } from "../../lib/format";
-import { getSocket } from "../../lib/socket";
+import { useAuth } from "../../store/AuthContext";
+import { useLiveTracking } from "../../lib/tracking";
+import { useBookingSync } from "../../lib/useBookingSync";
 import {
   Avatar,
   Badge,
@@ -19,7 +23,7 @@ import {
   BookingTimeline,
   Card,
   ErrorState,
-  MapPanel,
+  LiveMap,
   SkeletonList,
   OtpInput,
   PriceBreakdown,
@@ -52,12 +56,18 @@ const WORKER_TIMELINE_LABELS: Record<string, string> = {
 export default function JobDetailScreen({ route, navigation }: Props) {
   const { t, i18n } = useTranslation();
   const { bookingId } = route.params;
+  const { user } = useAuth();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+
+  const tracking = useLiveTracking(
+    bookingId,
+    ["ON_THE_WAY", "ARRIVED"].includes(booking?.status ?? "")
+  );
 
   const load = useCallback(async () => {
     try {
@@ -72,21 +82,19 @@ export default function JobDetailScreen({ route, navigation }: Props) {
     }
   }, [bookingId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Focus + every booking lifecycle / dispatch socket event → reload, so
+  // this screen always reflects real state (assigned to someone else,
+  // cancelled, advanced by the OTP flow or the tracking simulator).
+  useBookingSync(load);
 
+  // Backstop: the simulated drive completing flips the booking to ARRIVED
+  // server-side and emits booking:statusUpdate (handled above); reload if
+  // that was missed.
   useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-    function onUpdate(payload: { id: string }) {
-      if (payload.id === bookingId) load();
+    if (tracking?.phase === "ARRIVED" && booking?.status === "ON_THE_WAY") {
+      load();
     }
-    socket.on("booking:statusUpdate", onUpdate);
-    return () => {
-      socket.off("booking:statusUpdate", onUpdate);
-    };
-  }, [bookingId, load]);
+  }, [tracking?.phase, booking?.status, load]);
 
   async function transition(status: Parameters<typeof updateBookingStatus>[1]) {
     setActing(true);
@@ -105,6 +113,34 @@ export default function JobDetailScreen({ route, navigation }: Props) {
       setBooking(await requestCompletion(bookingId));
     } catch {
       Alert.alert(t("workerJob.completeError"));
+    } finally {
+      setActing(false);
+    }
+  }
+
+  async function handleAccept() {
+    setActing(true);
+    try {
+      setBooking(await acceptBooking(bookingId));
+    } catch (err: any) {
+      if (err?.response?.status === 409) {
+        Alert.alert(t("workerJob.requestGoneTitle"), t("workerJob.requestGoneBody"));
+        load();
+      } else {
+        Alert.alert(t("workerJob.acceptError"));
+      }
+    } finally {
+      setActing(false);
+    }
+  }
+
+  async function handleDecline() {
+    setActing(true);
+    try {
+      await declineBooking(bookingId);
+      navigation.goBack();
+    } catch {
+      Alert.alert(t("workerHome.declineFailed"));
     } finally {
       setActing(false);
     }
@@ -134,19 +170,79 @@ export default function JobDetailScreen({ route, navigation }: Props) {
   }
 
   const money = (n: number) => formatCurrency(n, i18n.language);
-  // This screen is only ever reached for a booking already assigned to
-  // this worker (dispatch model §13/§24 — REQUESTED/unassigned requests
-  // are shown as their own incoming-request cards, not drilled into
-  // here), so contact info is always available.
+
+  // Ownership is derived from live booking state, never assumed. This
+  // screen can be opened for a broadcast request the worker hasn't
+  // accepted (deep link from a notification) or for one that ended up
+  // assigned to someone else.
+  const myUserId = user?.id;
+  const assignedToMe = !!booking.worker && booking.worker.user?.id === myUserId;
+  const isOpenRequest = booking.status === "REQUESTED" && !booking.workerId;
+  const takenByOther = !!booking.workerId && !assignedToMe;
+
   const address = [booking.serviceAddressLine, booking.serviceLandmark, booking.servicePincode]
     .filter(Boolean)
     .join(", ");
+
+  if (takenByOther) {
+    return (
+      <View style={styles.centered}>
+        <StatusBadge status={booking.status} />
+        <Text style={styles.centeredTitle}>{t("workerJob.takenTitle")}</Text>
+        <Text style={styles.centeredBody}>{t("workerJob.takenBody")}</Text>
+        <Button label={t("common.back")} variant="outline" onPress={() => navigation.goBack()} style={styles.centeredButton} />
+      </View>
+    );
+  }
+
+  if (isOpenRequest) {
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.serviceName}>
+            {booking.service?.name ?? ""}
+            {booking.isEmergency && <Badge label={t("workerJob.emergency")} tone="error" />}
+          </Text>
+          <StatusBadge status={booking.status} />
+        </View>
+        <Text style={styles.meta}>{formatDateTime(booking.scheduledAt, i18n.language)}</Text>
+        {address ? (
+          <Card style={styles.addressCard}>
+            <Text style={styles.addressTitle}>{t("workerJob.serviceArea")}</Text>
+            <Text style={styles.addressLine}>{booking.servicePincode ?? address}</Text>
+          </Card>
+        ) : null}
+        <Card style={styles.actionCard}>
+          <PriceBreakdown
+            compact
+            totalAmount={booking.totalAmount}
+            workerShare={booking.workerShare}
+            federationFee={booking.federationFee}
+            welfareContribution={booking.welfareContribution}
+            emergencyBonus={booking.emergencyBonus}
+            isEmergency={booking.isEmergency}
+            money={money}
+            labels={{
+              totalPrice: t("fairPricing.totalPrice"),
+              workerShare: t("fairPricing.workerShare"),
+              federationFee: t("fairPricing.federationFee"),
+              welfareContribution: t("fairPricing.welfareContribution"),
+              emergencyBonus: t("fairPricing.emergencyBonus"),
+              emergencyBonusNote: `+${money(booking.emergencyBonus)} ${t("worker.emergencyBonusIncluded")}`,
+            }}
+          />
+          <Button label={t("workerHome.accept")} onPress={handleAccept} loading={acting} style={styles.otpButton} />
+          <Button label={t("workerHome.decline")} variant="outline" onPress={handleDecline} disabled={acting} style={styles.otpButton} />
+        </Card>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
         <Text style={styles.serviceName}>
-          {booking.service.name}
+          {booking.service?.name ?? ""}
           {booking.isEmergency && <Badge label={t("workerJob.emergency")} tone="error" />}
         </Text>
         <StatusBadge status={booking.status} />
@@ -178,16 +274,29 @@ export default function JobDetailScreen({ route, navigation }: Props) {
         />
       </View>
 
-      {["ASSIGNED", "ON_THE_WAY"].includes(booking.status) && (
-        <MapPanel
-          statusLabel={t("workerHome.navigateTo")}
-          liveUnavailableLabel={t("tracking.mapNotLive")}
-          origin={{ latitude: 0, longitude: 0, label: t("workerHome.yourStart") }}
+      {["ASSIGNED", "ON_THE_WAY", "ARRIVED"].includes(booking.status) && (
+        <LiveMap
           destination={{
             latitude: booking.latitude ?? 0,
             longitude: booking.longitude ?? 0,
             label: booking.serviceAddressLine ?? t("workerHome.customerLocation"),
           }}
+          worker={
+            tracking
+              ? { latitude: tracking.latitude, longitude: tracking.longitude, label: t("workerHome.yourStart") }
+              : null
+          }
+          phase={
+            booking.status === "ARRIVED"
+              ? "ARRIVED"
+              : booking.status === "ON_THE_WAY"
+              ? "EN_ROUTE"
+              : "IDLE"
+          }
+          etaSeconds={tracking?.etaSeconds ?? null}
+          distanceKm={tracking?.distanceKm ?? null}
+          etaLabel={t("workerHome.navigateTo")}
+          arrivedLabel={t("tracking.timelineArrived")}
         />
       )}
 
@@ -213,7 +322,20 @@ export default function JobDetailScreen({ route, navigation }: Props) {
           <Button label={t("workerJob.startNavigating")} onPress={() => transition("ON_THE_WAY")} loading={acting} />
         )}
         {booking.status === "ON_THE_WAY" && (
-          <Button label={t("workerJob.iveArrived")} onPress={() => transition("ARRIVED")} loading={acting} />
+          <View>
+            <Text style={styles.enRouteHint}>
+              {tracking?.etaSeconds != null
+                ? t("workerJob.autoArrive", { seconds: tracking.etaSeconds })
+                : t("workerJob.enRoute")}
+            </Text>
+            <Button
+              label={t("workerJob.iveArrived")}
+              onPress={() => transition("ARRIVED")}
+              loading={acting}
+              variant="outline"
+              style={styles.otpButton}
+            />
+          </View>
         )}
         {booking.status === "ARRIVED" && (
           <View>
@@ -303,6 +425,10 @@ export default function JobDetailScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { padding: spacing.xl, paddingBottom: spacing.xxxl },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, gap: spacing.md },
+  centeredTitle: { ...type.h2, color: colors.textPrimary, textAlign: "center", marginTop: spacing.md },
+  centeredBody: { ...type.body, color: colors.textSecondary, textAlign: "center" },
+  centeredButton: { marginTop: spacing.lg, alignSelf: "stretch" },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   serviceName: { ...type.h1, color: colors.textPrimary, flexShrink: 1, marginRight: spacing.sm },
   meta: { ...type.small, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },
@@ -319,6 +445,7 @@ const styles = StyleSheet.create({
   timelineCard: { marginBottom: spacing.lg },
   timelineTitle: { ...type.h3, color: colors.textPrimary, marginBottom: spacing.md },
   otpPrompt: { ...type.body, color: colors.textSecondary, marginBottom: spacing.lg, textAlign: "center" },
+  enRouteHint: { ...type.smallMedium, color: colors.textSecondary, textAlign: "center" },
   otpError: { ...type.small, color: colors.error, textAlign: "center", marginTop: spacing.md },
   otpButton: { marginTop: spacing.lg },
   inProgressText: { ...type.body, color: colors.textSecondary, marginBottom: spacing.lg },

@@ -1,10 +1,11 @@
-import { createContext, useContext } from "react";
+import { useNavigation } from "@react-navigation/native";
 
-// Lets a screen nested inside one bottom-tab stack (e.g. the Home tab's
-// "Book Emergency Service" CTA) switch the active tab, without needing
-// react-navigation's cross-navigator typed actions. Set by BottomTabs.
-export const TabSwitchContext = createContext<(key: string) => void>(() => {});
-
+// Switch the active bottom tab from a screen nested inside one tab's
+// stack (e.g. Home's "Book Emergency Service" CTA). Now that the tab bar
+// is a real @react-navigation/bottom-tabs navigator, this is just a
+// normal navigate() up the tree to the sibling tab route — no custom
+// context needed.
 export function useTabSwitch() {
-  return useContext(TabSwitchContext);
+  const navigation = useNavigation();
+  return (tabRouteName: string) => navigation.navigate(tabRouteName as never);
 }

@@ -80,11 +80,14 @@ export type ProfileStackParamList = SharedRoutes & {
   CustomerProfile: undefined;
 };
 
-// A customer's booking notifications open the live tracking screen.
+// A customer owns every booking they're notified about, so any
+// booking-referencing notification opens the live tracking screen.
 function CustomerNotificationsScreen({ navigation }: any) {
   return (
     <NotificationsScreen
-      onOpenBooking={(bookingId) => navigation.navigate("BookingTracking", { bookingId })}
+      onOpenNotification={(n) => {
+        if (n.bookingId) navigation.navigate("BookingTracking", { bookingId: n.bookingId });
+      }}
     />
   );
 }
@@ -111,7 +114,11 @@ function sharedScreens<T extends Record<string, any>>(Stack: ReturnType<typeof c
       <Stack.Screen name={"BookingTracking" as any} component={BookingTrackingScreen as any} options={{ title: "Track Booking" }} />
       <Stack.Screen name={"Invoice" as any} component={InvoiceScreen as any} options={{ title: "Invoice" }} />
       <Stack.Screen name={"Rating" as any} component={RatingScreen as any} options={{ title: "Rate Your Professional" }} />
-      <Stack.Screen name={"Chat" as any} component={ChatScreen as any} options={{ title: "" }} />
+      <Stack.Screen
+        name={"Chat" as any}
+        component={ChatScreen as any}
+        options={({ route }: any) => ({ title: route.params?.otherPartyName ?? "Chat" })}
+      />
       <Stack.Screen
         name={"Notifications" as any}
         component={CustomerNotificationsScreen as any}

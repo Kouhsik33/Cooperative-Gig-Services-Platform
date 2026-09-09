@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
 import type { HomeStackParamList } from "../../navigation/CustomerNavigator";
-import { createPaymentOrder, simulatePaymentCallback } from "../../api/payments";
+import { createPaymentOrder, payWithCod, simulatePaymentCallback } from "../../api/payments";
 import type { PaymentOrder } from "../../api/payments";
 import { formatCurrency } from "../../lib/format";
 import { Button, Card, ErrorState, LoadingState } from "../../components/ui";
@@ -28,6 +28,7 @@ export default function CheckoutScreen({ route, navigation }: Props) {
   const [order, setOrder] = useState<PaymentOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
+  const [choosingCod, setChoosingCod] = useState(false);
   const [paid, setPaid] = useState(false);
 
   useEffect(() => {
@@ -36,6 +37,21 @@ export default function CheckoutScreen({ route, navigation }: Props) {
       .catch(() => setError(t("checkout.loadError")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
+
+  // Once the booking is created + a payment choice is made, the slot
+  // picker / pricing / this screen are all behind us. Rebuild the stack
+  // as [tab home] -> [tracking] so both the header back arrow AND the
+  // tracking screen's "Back to Home" land on the tab's home screen —
+  // never back into a finished checkout (which caused a redirect loop).
+  function goToTracking() {
+    navigation.reset({
+      index: 1,
+      routes: [
+        { name: navigation.getState().routes[0].name as never },
+        { name: "BookingTracking" as never, params: { bookingId } as never },
+      ],
+    });
+  }
 
   async function handleSimulate() {
     setSimulating(true);
@@ -47,6 +63,18 @@ export default function CheckoutScreen({ route, navigation }: Props) {
       setError(t("checkout.simulateError"));
     } finally {
       setSimulating(false);
+    }
+  }
+
+  async function handleCod() {
+    setChoosingCod(true);
+    setError(null);
+    try {
+      await payWithCod(bookingId);
+      goToTracking();
+    } catch {
+      setError(t("checkout.codError"));
+      setChoosingCod(false);
     }
   }
 
@@ -82,19 +110,28 @@ export default function CheckoutScreen({ route, navigation }: Props) {
       {paid ? (
         <>
           <Text style={styles.successNotice}>{t("checkout.simulateSuccess")}</Text>
-          <Button
-            label={t("checkout.trackBooking")}
-            onPress={() => navigation.navigate("BookingTracking", { bookingId })}
-            style={styles.button}
-          />
+          <Button label={t("checkout.trackBooking")} onPress={goToTracking} style={styles.button} />
         </>
       ) : (
-        <Button
-          label={t("checkout.simulatePayment")}
-          onPress={handleSimulate}
-          loading={simulating}
-          style={styles.button}
-        />
+        <>
+          <Text style={styles.methodLabel}>{t("checkout.paymentMethod")}</Text>
+          <Button
+            label={t("checkout.payOnline")}
+            onPress={handleSimulate}
+            loading={simulating}
+            disabled={choosingCod}
+            style={styles.button}
+          />
+          <Button
+            label={t("checkout.payCod")}
+            variant="outline"
+            onPress={handleCod}
+            loading={choosingCod}
+            disabled={simulating}
+            style={styles.button}
+          />
+          <Text style={styles.codNote}>{t("checkout.codNote")}</Text>
+        </>
       )}
       {error && !paid && <Text style={styles.errorText}>{error}</Text>}
     </ScrollView>
@@ -106,6 +143,8 @@ const styles = StyleSheet.create({
   title: { ...type.h1, color: colors.textPrimary, marginBottom: spacing.xs },
   meta: { ...type.small, color: colors.textSecondary, marginBottom: spacing.md },
   mockNotice: { ...type.small, color: colors.warning, marginBottom: spacing.sm },
+  methodLabel: { ...type.smallMedium, color: colors.textSecondary, marginTop: spacing.sm, marginBottom: spacing.sm },
+  codNote: { ...type.caption, color: colors.textMuted, marginTop: spacing.sm },
   successNotice: { ...type.smallMedium, color: colors.success, marginBottom: spacing.sm },
   errorText: { ...type.small, color: colors.error, marginTop: spacing.md },
   summaryCard: { marginVertical: spacing.lg },

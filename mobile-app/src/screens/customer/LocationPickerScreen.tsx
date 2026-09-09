@@ -18,28 +18,28 @@ const LABEL_ICON: Record<string, IconName> = {
 };
 
 // Rapido/Swiggy-style location selection (product-flow update §5-9).
-// "Use current location" gracefully falls back to the documented demo
-// location rather than pretending real GPS works — this environment has
-// no expo-location wired in (see DEMO_LOCATION's own comment).
+// "Use current location" resolves to the fixed demo service area — this
+// app deliberately does not use real device GPS (see DEMO_LOCATION and
+// LocationContext), so the live-tracking demo runs identically every run.
 export default function LocationPickerScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { addresses, loadingAddresses, setLocation } = useServiceLocation();
   const [usingCurrent, setUsingCurrent] = useState(false);
 
-  function selectDemoLocation() {
+  function selectCurrentLocation() {
     setUsingCurrent(true);
     setTimeout(() => {
       setLocation(DEMO_SERVICE_LOCATION);
       setUsingCurrent(false);
       navigation.goBack();
-    }, 400);
+    }, 350);
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{t("locationPicker.title")}</Text>
 
-      <TouchableOpacity style={styles.currentButton} onPress={selectDemoLocation} disabled={usingCurrent}>
+      <TouchableOpacity style={styles.currentButton} onPress={selectCurrentLocation} disabled={usingCurrent}>
         {usingCurrent ? (
           <ActivityIndicator color={colors.primary} />
         ) : (
@@ -47,7 +47,7 @@ export default function LocationPickerScreen({ navigation }: Props) {
             <Ionicons name={icons.locationFilled} size={iconSize.lg} color={colors.primary} style={styles.currentIcon} />
             <View style={{ flex: 1 }}>
               <Text style={styles.currentLabel}>{t("locationPicker.useCurrentLocation")}</Text>
-<Text style={styles.currentSub}>{t("locationPicker.demoGpsNote")}</Text>
+              <Text style={styles.currentSub}>{t("locationPicker.demoGpsNote")}</Text>
             </View>
           </>
         )}

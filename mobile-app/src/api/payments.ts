@@ -33,6 +33,7 @@ export interface Invoice {
     welfareContribution: number;
   };
   paymentStatus: string;
+  paymentMethod?: "cod" | "online";
 }
 
 export async function createPaymentOrder(bookingId: string): Promise<PaymentOrder> {
@@ -57,6 +58,18 @@ export async function simulatePaymentCallback(
   const { data } = await apiClient.post<{ alreadyProcessed: boolean }>(
     "/payments/simulate-callback",
     { bookingId }
+  );
+  return data;
+}
+
+// Cash on delivery — the customer will pay the professional in person
+// after the job. No money moves now; the booking proceeds and the
+// payment settles at completion (see backend payment.controller.ts).
+export async function payWithCod(
+  bookingId: string
+): Promise<{ method: "cod" }> {
+  const { data } = await apiClient.post<{ method: "cod" }>(
+    `/payments/${bookingId}/cod`
   );
   return data;
 }

@@ -46,11 +46,30 @@ export type JobsStackParamList = {
 export type WorkerStackParamList = HomeStackParamList & JobsStackParamList & ProfileStackParamList;
 
 
-// A worker's booking notifications point at their own job screen.
+// These notification types reference a booking the worker does NOT own
+// (a broadcast they haven't accepted, or one that went to someone else),
+// so JobDetail can't load it — send them to the Jobs feed instead, where
+// the Accept action and the rest of the open requests live. Every other
+// booking notification is about the worker's own assigned job, so
+// JobDetail is correct.
+const NOT_MY_JOB_NOTIF_TYPES = [
+  "NEW_REQUEST",
+  "REQUEST_TAKEN_ELSEWHERE",
+  "EMERGENCY_BOOKING",
+  "UNASSIGNED_BOOKING",
+];
+
 function WorkerNotificationsScreen({ navigation }: any) {
   return (
     <NotificationsScreen
-      onOpenBooking={(bookingId) => navigation.navigate("JobDetail", { bookingId })}
+      onOpenNotification={(n) => {
+        if (!n.bookingId) return;
+        if (NOT_MY_JOB_NOTIF_TYPES.includes(n.type)) {
+          navigation.navigate("jobs", { screen: "JobFeed" });
+        } else {
+          navigation.navigate("JobDetail", { bookingId: n.bookingId });
+        }
+      }}
     />
   );
 }
@@ -61,7 +80,7 @@ function HomeStackNavigator() {
     <HomeStack.Navigator screenOptions={screenOptions}>
       <HomeStack.Screen name="WorkerHome" component={WorkerHomeScreen} options={{ headerShown: false }} />
       <HomeStack.Screen name="JobDetail" component={JobDetailScreen} options={{ title: "Job Details" }} />
-      <HomeStack.Screen name="Chat" component={ChatScreen} options={{ title: "" }} />
+      <HomeStack.Screen name="Chat" component={ChatScreen} options={({ route }: any) => ({ title: route.params?.otherPartyName ?? "Chat" })} />
       <HomeStack.Screen name="Notifications" component={WorkerNotificationsScreen} options={{ title: "Notifications" }} />
     </HomeStack.Navigator>
   );
@@ -73,7 +92,7 @@ function JobsStackNavigator() {
     <JobsStack.Navigator screenOptions={screenOptions}>
       <JobsStack.Screen name="JobFeed" component={JobFeedScreen} options={{ headerShown: false }} />
       <JobsStack.Screen name="JobDetail" component={JobDetailScreen} options={{ title: "Job Details" }} />
-      <JobsStack.Screen name="Chat" component={ChatScreen} options={{ title: "" }} />
+      <JobsStack.Screen name="Chat" component={ChatScreen} options={({ route }: any) => ({ title: route.params?.otherPartyName ?? "Chat" })} />
       <JobsStack.Screen name="Notifications" component={WorkerNotificationsScreen} options={{ title: "Notifications" }} />
     </JobsStack.Navigator>
   );
@@ -94,7 +113,7 @@ function ProfileStackNavigator() {
         options={{ title: "Notifications" }}
       />
       <ProfileStack.Screen name="JobDetail" component={JobDetailScreen} options={{ title: "Job Details" }} />
-      <ProfileStack.Screen name="Chat" component={ChatScreen} options={{ title: "" }} />
+      <ProfileStack.Screen name="Chat" component={ChatScreen} options={({ route }: any) => ({ title: route.params?.otherPartyName ?? "Chat" })} />
     </ProfileStack.Navigator>
   );
 }

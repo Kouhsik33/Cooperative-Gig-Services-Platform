@@ -16,11 +16,14 @@ import { Ionicons } from "@expo/vector-icons";
 
 
 interface Props {
-  /** Given by each role's navigator, since the two open different screens for a booking. */
-  onOpenBooking?: (bookingId: string) => void;
+  /** Given by each role's navigator. The whole notification is passed (not
+   *  just the bookingId) because the right destination depends on the
+   *  notification type — e.g. a worker's NEW_REQUEST opens the Jobs feed
+   *  where Accept lives, not a job-detail screen they can't yet load. */
+  onOpenNotification?: (n: AppNotification) => void;
 }
 
-export default function NotificationsScreen({ onOpenBooking }: Props) {
+export default function NotificationsScreen({ onOpenNotification }: Props) {
   const { t, i18n } = useTranslation();
   const { notifications, unreadCount, loading, loadFailed, refresh, markRead, markAllRead } =
     useNotifications();
@@ -34,7 +37,7 @@ export default function NotificationsScreen({ onOpenBooking }: Props) {
 
   function onPress(n: AppNotification) {
     if (!n.readAt) markRead(n.id);
-    if (n.bookingId && onOpenBooking) onOpenBooking(n.bookingId);
+    if (onOpenNotification) onOpenNotification(n);
   }
 
   if (loading && notifications.length === 0) return <LoadingState />;

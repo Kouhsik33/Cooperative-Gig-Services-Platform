@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { HomeStackParamList } from "../../navigation/WorkerNavigator";
 import { useAuth } from "../../store/AuthContext";
 import { useTabSwitch } from "../../navigation/TabSwitchContext";
+import { useBookingSync } from "../../lib/useBookingSync";
 import { acceptBooking, listIncomingRequests, listMyBookings } from "../../api/bookings";
 import type { IncomingRequest } from "../../api/bookings";
 import { getWorker, getWorkerWelfare, updateAvailability } from "../../api/workers";
@@ -59,7 +60,6 @@ export default function WorkerHomeScreen({ navigation }: Props) {
   const [ratingAvg, setRatingAvg] = useState<number | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const [all, requests] = await Promise.all([listMyBookings(), listIncomingRequests()]);
       setLoadFailed(false);
@@ -87,9 +87,7 @@ export default function WorkerHomeScreen({ navigation }: Props) {
     }
   }, [user?.worker?.id]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useBookingSync(load);
 
   if (loading) return <SkeletonList count={3} variant="row" />;
   if (loadFailed) {

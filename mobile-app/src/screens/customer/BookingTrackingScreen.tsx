@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { HomeStackParamList } from "../../navigation/CustomerNavigator";
 import {
@@ -12,13 +13,14 @@ import {
 import type { Booking } from "../../api/types";
 import { formatDateTime } from "../../lib/format";
 import { getSocket } from "../../lib/socket";
+import { useLiveTracking } from "../../lib/tracking";
 import {
   Avatar,
   BookingTimeline,
   Button,
   Card,
   ErrorState,
-  MapPanel,
+  LiveMap,
   Rating,
   SkeletonList,
   StatusBadge,
@@ -62,6 +64,9 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
   const [loadFailed, setLoadFailed] = useState(false);
   const [redispatching, setRedispatching] = useState(false);
 
+  const trackingActive = ["ON_THE_WAY", "ARRIVED"].includes(booking?.status ?? "");
+  const tracking = useLiveTracking(bookingId, trackingActive);
+
   const load = useCallback(async () => {
     try {
       const b = await getBookingById(bookingId);
@@ -86,6 +91,24 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Re-fetch every time the screen regains focus — the booking may have
+  // been paid, assigned, or advanced while the user was on Checkout or
+  // another tab.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  // When the simulated drive completes, the backend flips the booking to
+  // ARRIVED and emits booking:statusUpdate (which triggers load() below).
+  // This is a backstop in case that emit is missed.
+  useEffect(() => {
+    if (tracking?.phase === "ARRIVED" && booking?.status === "ON_THE_WAY") {
+      load();
+    }
+  }, [tracking?.phase, booking?.status, load]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -150,7 +173,7 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
         <View style={styles.searchingHero}>
           <ActivityIndicator color={colors.primary} size="large" />
           <Text style={styles.searchingTitle}>{t("tracking.searchingTitle")}</Text>
-          <Text style={styles.searchingSubtitle}>{booking.service.name}</Text>
+          <Text style={styles.searchingSubtitle}>{booking.service?.name ?? ""}</Text>
         </View>
 
         <Card style={styles.searchStepsCard}>
@@ -217,7 +240,7 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
           </View>
           <StatusBadge status={booking.status} />
         </View>
-        <Text style={styles.serviceName}>{booking.service.name}</Text>
+        <Text style={styles.serviceName}>{booking.service?.name ?? ""}</Text>
       </Card>
 
       {booking.worker && (
@@ -234,16 +257,33 @@ export default function BookingTrackingScreen({ route, navigation }: Props) {
         </View>
       )}
 
-      {["ASSIGNED", "ON_THE_WAY"].includes(booking.status) && (
-        <MapPanel
-          statusLabel={t("tracking.onTheWayTo")}
-          liveUnavailableLabel={t("tracking.mapNotLive")}
-          origin={{ latitude: 0, longitude: 0, label: booking.worker?.user.name ?? "" }}
+      {["ASSIGNED", "ON_THE_WAY", "ARRIVED"].includes(booking.status) && (
+        <LiveMap
           destination={{
             latitude: booking.latitude ?? 0,
             longitude: booking.longitude ?? 0,
             label: booking.serviceAddressLine ?? t("tracking.yourLocation"),
           }}
+          worker={
+            tracking
+              ? {
+                  latitude: tracking.latitude,
+                  longitude: tracking.longitude,
+                  label: booking.worker?.user.name ?? t("tracking.professional"),
+                }
+              : null
+          }
+          phase={
+            booking.status === "ARRIVED"
+              ? "ARRIVED"
+              : booking.status === "ON_THE_WAY"
+              ? "EN_ROUTE"
+              : "IDLE"
+          }
+          etaSeconds={tracking?.etaSeconds ?? null}
+          distanceKm={tracking?.distanceKm ?? null}
+          etaLabel={t("tracking.onTheWayTo")}
+          arrivedLabel={t("tracking.timelineArrived")}
         />
       )}
 

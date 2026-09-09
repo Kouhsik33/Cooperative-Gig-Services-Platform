@@ -11,7 +11,8 @@
     "bookingsEmptyCta": "Browse services",
     "notificationsEmptyCta": "Go to home",
     "addressEmptyCta": "Add an address",
-    "jobsEmptyCta": "See new requests"
+    "jobsEmptyCta": "See new requests",
+    "back": "Back"
   },
   "auth": {
     "adminOnlyTitle": "Use the admin dashboard",
@@ -89,7 +90,14 @@
     "bookingSummary": "Booking summary",
     "trackBooking": "Track booking",
     "welfareIncluded": "Worker welfare (included)",
-    "federationIncluded": "Federation contribution (included)"
+    "federationIncluded": "Federation contribution (included)",
+    "paymentMethod": "How would you like to pay?",
+    "payOnline": "Pay online now",
+    "payCod": "Pay cash after service",
+    "codNote": "Pay the professional directly once the job is done. Worker welfare and the federation contribution still apply.",
+    "codSuccess": "Cash on delivery selected.",
+    "codError": "Could not select cash on delivery.",
+    "codBadge": "Cash on delivery"
   },
   "invoice": {
     "titlePrefix": "Invoice",
@@ -251,7 +259,9 @@
     "addAddress": "Add a new address",
     "title": "Choose service location",
     "savedAddresses": "Saved addresses",
-    "demoGpsNote": "Real GPS isn't available in this demo — uses the seeded Pune service area"
+    "demoGpsNote": "Uses your device GPS — allow the permission when asked",
+    "permissionDenied": "Location permission denied — using the demo area. You can pick a saved address instead.",
+    "locationError": "Couldn't get your location — using the demo area."
   },
   "tracking": {
     "searchingTitle": "Finding a verified professional near you...",
@@ -291,7 +301,9 @@
     "yourLocation": "Your location",
     "bookingConfirmed": "Booking confirmed",
     "quickActions": "Need something?",
-    "bookAgain": "Book again"
+    "bookAgain": "Book again",
+    "liveTracking": "Live tracking",
+    "workerEnRoute": "Your professional is on the way"
   },
   "home": {
     "greeting": "Hi {{name}} 👋",
@@ -440,6 +452,12 @@
     "acceptError": "Could not accept this job. Please try again.",
     "askStartOtp": "Ask the customer for the 4-digit service start OTP.",
     "askCompletionOtp": "Ask the customer for the 4-digit completion OTP.",
-    "startedAt": "Started {{time}}"
+    "startedAt": "Started {{time}}",
+    "autoArrive": "Arriving in ~{{seconds}}s — updates automatically",
+    "enRoute": "On the way to the customer",
+    "requestGoneBody": "Another professional accepted this service.",
+    "takenTitle": "Already assigned",
+    "takenBody": "Another professional is handling this job.",
+    "serviceArea": "Service area"
   }
 }

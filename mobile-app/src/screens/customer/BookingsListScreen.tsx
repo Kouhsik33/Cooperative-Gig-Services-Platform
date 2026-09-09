@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useBookingSync } from "../../lib/useBookingSync";
 import type { BookingsStackParamList } from "../../navigation/CustomerNavigator";
 import { useTabSwitch } from "../../navigation/TabSwitchContext";
 import { listMyBookings } from "../../api/bookings";
@@ -41,7 +42,6 @@ export default function BookingsListScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       setBookings(await listMyBookings());
       setError(null);
@@ -52,9 +52,9 @@ export default function BookingsListScreen({ navigation }: Props) {
     }
   }, [t]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Reload on focus + on every booking lifecycle socket event, so a
+  // booking cancelled/completed/advanced elsewhere is reflected here.
+  useBookingSync(load);
 
   if (loading) return <SkeletonList count={4} variant="row" />;
   if (error) return <ErrorState message={error} onRetry={load} />;

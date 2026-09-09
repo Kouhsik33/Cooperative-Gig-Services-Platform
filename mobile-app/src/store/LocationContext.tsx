@@ -4,6 +4,12 @@ import type { CustomerAddress } from "../api/addresses";
 import { DEMO_LOCATION } from "../lib/location";
 import { useAuth } from "./AuthContext";
 
+// Location is the fixed DEMO_LOCATION / a saved address — never real
+// device GPS. This is a deliberate, kept constraint: the live-tracking
+// demo (simulated worker movement) must run identically every time, and
+// a real GPS position would make the customer↔worker distance vary per
+// device / per run.
+
 // The customer's current service location (product-flow update §4-11).
 // Deliberately separate from "profile address": this is just whichever
 // address is currently driving service discovery / the next booking's
@@ -91,7 +97,13 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <LocationContext.Provider
-      value={{ location, setLocation, addresses, loadingAddresses, refreshAddresses }}
+      value={{
+        location,
+        setLocation,
+        addresses,
+        loadingAddresses,
+        refreshAddresses,
+      }}
     >
       {children}
     </LocationContext.Provider>

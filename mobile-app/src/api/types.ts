@@ -114,6 +114,10 @@ export interface Booking {
   emergencyBonus: number;
   service: Service;
   servicePackage?: { id: string; name: string; description?: string } | null;
+  // Scalar FK — null while REQUESTED (still searching, dispatch model).
+  // Kept alongside the `worker` relation so a screen can tell "assigned
+  // to someone" from "assigned to me" without the relation being loaded.
+  workerId?: string | null;
   // Null while REQUESTED (still searching, dispatch model) — every
   // status from ASSIGNED onward has one.
   worker: {

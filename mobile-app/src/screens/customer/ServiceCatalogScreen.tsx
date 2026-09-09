@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { HomeStackParamList } from "../../navigation/CustomerNavigator";
 import { useTabSwitch } from "../../navigation/TabSwitchContext";
+import { useBookingSync } from "../../lib/useBookingSync";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import NotificationBell from "../../components/NotificationBell";
 import { getServices } from "../../api/services";
@@ -85,14 +86,17 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
   }, []);
 
   // A booking already in flight is the most actionable thing a returning
-  // customer can see, so home surfaces it above the catalog rather than
-  // making them find the Bookings tab. Failure is silent for the same
-  // reason as impact — it must not take the catalog down.
-  useEffect(() => {
+  // customer can see, so home surfaces it above the catalog. Kept in
+  // sync on focus + every booking lifecycle socket event, so it appears
+  // the moment one is placed and disappears when it completes/cancels —
+  // never a stale card. Failure is silent (must not take the catalog
+  // down), same as the impact card.
+  const loadActiveBooking = useCallback(() => {
     listMyBookings()
       .then((all) => setActiveBooking(all.find((b) => ACTIVE_STATUSES.includes(b.status)) ?? null))
       .catch(() => setActiveBooking(null));
   }, []);
+  useBookingSync(loadActiveBooking);
 
   const categories = useMemo(
     () => Array.from(new Set(services.map((s) => s.category))),

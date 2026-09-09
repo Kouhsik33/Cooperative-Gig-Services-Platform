@@ -18,6 +18,8 @@ export { default as BookingTimeline, TIMELINE_ORDER, timelineIndexFor } from "./
 export type { TimelineStep } from "./BookingTimeline";
 export { default as TrustBadge, TrustList } from "./TrustBadge";
 export { default as MapPanel } from "./MapPanel";
+export { default as LiveMap } from "./LiveMap";
+export type { LatLng } from "./LiveMap";
 export { default as RequestCard } from "./RequestCard";
 export { default as ServicePackageCard } from "./ServicePackageCard";
 export type { MapPoint } from "./MapPanel";

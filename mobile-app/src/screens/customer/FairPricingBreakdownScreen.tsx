@@ -86,8 +86,10 @@ export default function FairPricingBreakdownScreen({ route, navigation }: Props)
         contactPhone,
         instructions,
       });
-      // Replace rather than push: going "back" to a confirmation screen for
-      // a booking that now exists would offer to create it a second time.
+      // Replace rather than push: the booking now exists and is being
+      // dispatched, so "back" to this confirmation screen would only
+      // offer to create it a second time. BookingTracking (reached from
+      // Checkout) has its own "Back to Home" escape.
       navigation.replace("Checkout", { bookingId: booking.id });
     } catch {
       setConfirmError(t("fairPricing.createError"));
