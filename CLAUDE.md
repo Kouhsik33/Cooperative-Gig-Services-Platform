@@ -1692,6 +1692,22 @@ components to the same pattern (`label` `flexShrink: 1` and wraps,
 - admin-web tables were already `overflow-x-auto` + `min-w-[720px]`
   (unchanged, re-checked).
 
+### `Card` — layout styles now reach the outer touchable
+
+The Register screen's two role cards (Customer / Worker) are a
+`flexDirection: "row"` of `<Card onPress … style={{ flex: 1 }}>`. `Card`
+applied `style` only to its **inner `<View>`**, never the wrapping
+`TouchableOpacity`, so `flex: 1` did nothing — each touchable sized to
+its content and the "Worker" card overflowed off the right edge (worse
+with the longer Telugu hint text). Fixed in `components/ui/Card.tsx`:
+when pressable, the layout subset of `style` (`flex*`, `alignSelf`,
+`width`/`min`/`max`, `height`, all `margin*`) is copied to the
+`TouchableOpacity`; the full `style` still lands on the inner view so
+visual overrides (the selected-state border/background) are unaffected,
+and the shadow isn't clipped. The 2 pressable-Card-with-layout-style call
+sites (`RegisterScreen`, dead `WorkerCard`) are the only ones affected;
+every plain `<Card style>` is unchanged.
+
 ### Verification
 
 - `tsc` clean: backend + mobile + admin-web. admin-web Vite build clean.
