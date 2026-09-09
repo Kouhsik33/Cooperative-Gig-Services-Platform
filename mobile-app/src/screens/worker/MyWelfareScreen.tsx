@@ -98,7 +98,7 @@ export default function MyWelfareScreen() {
       ListEmptyComponent={<EmptyState icon={icons.welfare} title={t("myWelfare.noTransactions")} />}
       renderItem={({ item }) => (
         <View style={styles.txRow}>
-          <View>
+          <View style={styles.txInfo}>
             <Text style={styles.txType}>{item.type}</Text>
             <Text style={styles.txDate}>{formatDate(item.createdAt, i18n.language)}</Text>
           </View>
@@ -148,11 +148,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.md,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  txInfo: { flexShrink: 1 },
   txType: { ...type.bodyMedium, color: colors.textPrimary, textTransform: "capitalize" },
   txDate: { ...type.caption, color: colors.textMuted, marginTop: 2 },
-  txAmount: { ...type.bodyMedium, color: colors.success },
+  txAmount: { ...type.bodyMedium, color: colors.success, flexShrink: 0 },
 });

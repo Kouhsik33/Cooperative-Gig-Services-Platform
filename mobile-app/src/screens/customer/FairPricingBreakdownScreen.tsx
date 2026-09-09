@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     gap: spacing.md,
   },
-  summaryLabel: { ...type.small, color: colors.textSecondary },
+  summaryLabel: { ...type.small, color: colors.textSecondary, flexShrink: 1 },
   summaryValue: { ...type.small, color: colors.textPrimary, flex: 1, textAlign: "right" },
   trustNote: {
     backgroundColor: colors.primaryLight,

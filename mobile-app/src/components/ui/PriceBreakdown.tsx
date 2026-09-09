@@ -104,6 +104,9 @@ function Row({
       >
         {value}
       </Text>
+      {/* label flexes/wraps, value stays intact and right-aligned — a
+          long (e.g. Telugu) label can no longer push the amount off
+          screen. See styles.label / styles.value below. */}
     </View>
   );
 }
@@ -113,15 +116,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.md,
     paddingVertical: spacing.sm + 2,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   rowCompact: { paddingVertical: spacing.xs + 2 },
   rowNoBorder: { borderBottomWidth: 0 },
-  label: { ...type.body, color: colors.textSecondary },
+  label: { ...type.body, color: colors.textSecondary, flexShrink: 1 },
   labelCompact: { ...type.small, color: colors.textSecondary },
-  value: { ...type.bodyMedium, color: colors.textPrimary },
+  value: { ...type.bodyMedium, color: colors.textPrimary, flexShrink: 0, textAlign: "right" },
   valueCompact: { ...type.smallMedium, color: colors.textPrimary },
   valueHighlight: { color: colors.success },
   emergencyBlock: {

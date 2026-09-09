@@ -1,10 +1,11 @@
-import { View } from "react-native";
+import { ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/client";
+import { SUPPORTED_LANGUAGES } from "../i18n";
 import { Chip } from "./ui";
 import { spacing } from "../theme/tokens";
 
-const LANGUAGES = ["en", "hi", "mr"] as const;
+const LANGUAGES = SUPPORTED_LANGUAGES;
 
 interface Props {
   // Persists the choice server-side via PATCH /auth/language — only valid
@@ -31,7 +32,12 @@ export default function LanguageSwitcher({ persist = false }: Props) {
   }
 
   return (
-    <View style={{ flexDirection: "row", marginRight: -spacing.sm }}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ flexDirection: "row", paddingRight: spacing.sm }}
+      style={{ marginRight: -spacing.sm, flexGrow: 0 }}
+    >
       {LANGUAGES.map((code) => (
         <Chip
           key={code}
@@ -40,6 +46,6 @@ export default function LanguageSwitcher({ persist = false }: Props) {
           onPress={() => select(code)}
         />
       ))}
-    </View>
+    </ScrollView>
   );
 }

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useState } from "react";
 import { apiClient } from "../api/client";
 import { connectSocket, disconnectSocket } from "../lib/socket";
+import i18n, { SUPPORTED_LANGUAGES } from "../i18n";
 import * as authApi from "../api/auth";
 import type { RegisterPayload } from "../api/auth";
 
@@ -34,6 +35,15 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 function applySession(user: AuthUser, accessToken: string, refreshToken: string) {
   apiClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
   connectSocket(accessToken);
+  // Restore the language the user last chose (persisted server-side via
+  // PATCH /auth/language) so hi/mr/te survives logging out and back in.
+  if (
+    user.language &&
+    user.language !== i18n.language &&
+    (SUPPORTED_LANGUAGES as readonly string[]).includes(user.language)
+  ) {
+    i18n.changeLanguage(user.language);
+  }
   return user;
 }
 

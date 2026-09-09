@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   },
   splitLabel: { ...type.small, color: colors.textSecondary, flex: 1, marginRight: spacing.md },
   splitLabelStrong: { ...type.bodyMedium, color: colors.primaryDark },
-  splitValue: { ...type.smallMedium, color: colors.textPrimary },
+  splitValue: { ...type.smallMedium, color: colors.textPrimary, flexShrink: 0, textAlign: "right" },
   splitValueStrong: { ...type.h3, color: colors.primaryDark },
   trustWrap: { marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
   stepRow: { flexDirection: "row", marginBottom: spacing.lg },
