@@ -86,14 +86,16 @@ export function isPincodeMatch(worker: CandidateWorker, ctx: MatchContext): bool
 // else happens to be eligible — which is exactly what makes the broadcast
 // and the worker's own feed agree by construction.
 //
-// A worker whose society covers the pincode stays eligible even with no
-// coordinates on file: pincode coverage is itself a statement about
-// service area, and dropping such a worker would silently shrink the
-// available workforce for a booking they genuinely serve.
-export function isEligible(worker: CandidateWorker, ctx: MatchContext): boolean {
-  if (isPincodeMatch(worker, ctx)) return true;
-  const distance = distanceKmFor(worker, ctx);
-  return distance != null && distance <= MATCHING.coverageRadiusKm;
+// DISTANCE IS NO LONGER A GATE (per explicit product decision — "any
+// worker matches any customer regardless of distance; do not block
+// bookings by 'service not available in this area'"). Eligibility is now
+// skill + verified + available only (the skill/verified/available filters
+// live in loadCandidates). Distance and pincode did not stop mattering —
+// they remain the two dominant *ranking* signals in scoreWorker (70 of
+// 100 points), so the nearest same-area worker still surfaces first; they
+// just never exclude anyone now.
+export function isEligible(_worker: CandidateWorker, _ctx: MatchContext): boolean {
+  return true;
 }
 
 // Explainable score in 0..100. Every component is a named factor rather

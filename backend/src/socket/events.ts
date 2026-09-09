@@ -40,6 +40,36 @@ export function emitOtpReady(
   }
 }
 
+// The simulated worker position during ON_THE_WAY travel (live
+// order-tracking view). Reuses the same customer/worker/federation rooms
+// as every other booking event — this is a new *event name*, not a new
+// realtime channel. Never carries an OTP; the payload is position + ETA
+// only. Emission is best-effort like every other socket side effect.
+export function emitBookingLocation(
+  federationId: string,
+  workerId: string,
+  customerId: string,
+  payload: {
+    bookingId: string;
+    latitude: number;
+    longitude: number;
+    etaSeconds: number;
+    distanceKm: number;
+    progress: number;
+    phase: "EN_ROUTE" | "ARRIVED";
+  }
+) {
+  try {
+    getIO()
+      .to(`federation:${federationId}`)
+      .to(`worker:${workerId}`)
+      .to(`customer:${customerId}`)
+      .emit("booking:location", payload);
+  } catch {
+    // Socket.io not critical to the request/response cycle.
+  }
+}
+
 export function emitChatMessage(
   customerId: string,
   workerId: string,

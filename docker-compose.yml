@@ -35,7 +35,10 @@ services:
       context: ./ai-service
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/sih26089?schema=public
+      # No `?schema=public` here — that is Prisma-specific query-string
+      # syntax and psycopg2 rejects it outright ("invalid URI query
+      # parameter: schema"). The AI service talks to Postgres directly.
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/sih26089
     ports:
       - "8000:8000"
     depends_on:

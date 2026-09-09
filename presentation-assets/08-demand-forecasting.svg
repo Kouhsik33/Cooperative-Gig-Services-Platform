@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="620"
+     viewBox="0 0 1600 620" role="img" aria-label="Demand forecasting — explainable, not opaque">
+<title>Demand forecasting — explainable, not opaque</title>
+<defs>
+  <style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');]]></style>
+  <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5"
+          markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#6B7C76"/>
+  </marker>
+  <marker id="ar-p" viewBox="0 0 10 10" refX="9" refY="5"
+          markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#0F6B5C"/>
+  </marker>
+</defs>
+<rect width="1600" height="620" fill="#F7F8F6"/>
+
+<text x="70" y="66" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#6B7C76" text-anchor="start" letter-spacing="1.1">SLIDE 3 · DEMAND FORECASTING SERVICE</text>
+<text x="70" y="96" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="800" fill="#16211E" text-anchor="start">Every recommendation shows the arithmetic that produced it</text>
+<rect x="70" y="180" width="268" height="92" rx="8" fill="#FFFFFF" stroke="#6B7C76" stroke-width="1.5"/>
+<text x="204.0" y="222.15" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#6B7C76" text-anchor="middle">Booking history</text>
+<text x="204.0" y="239.65" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#6B7C76" text-anchor="middle">60 days, real</text>
+<path d="M 346 226 H 364" fill="none" stroke="#6B7C76" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<rect x="372" y="180" width="268" height="92" rx="8" fill="#FFFFFF" stroke="#6B7C76" stroke-width="1.5"/>
+<text x="506.0" y="222.15" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#6B7C76" text-anchor="middle">14-day moving</text>
+<text x="506.0" y="239.65" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#6B7C76" text-anchor="middle">average</text>
+<path d="M 648 226 H 666" fill="none" stroke="#6B7C76" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<rect x="674" y="180" width="268" height="92" rx="8" fill="#FFFFFF" stroke="#6B7C76" stroke-width="1.5"/>
+<text x="808.0" y="222.15" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#6B7C76" text-anchor="middle">Compare to</text>
+<text x="808.0" y="239.65" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#6B7C76" text-anchor="middle">60-day baseline</text>
+<path d="M 950 226 H 968" fill="none" stroke="#6B7C76" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<rect x="976" y="180" width="268" height="92" rx="8" fill="#FFFFFF" stroke="#6B7C76" stroke-width="1.5"/>
+<text x="1110.0" y="222.15" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#6B7C76" text-anchor="middle">Demand level</text>
+<text x="1110.0" y="239.65" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#6B7C76" text-anchor="middle">+ trend %</text>
+<path d="M 1252 226 H 1270" fill="none" stroke="#6B7C76" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<rect x="1278" y="180" width="268" height="92" rx="8" fill="#FAEDE1" stroke="#C0651F" stroke-width="2"/>
+<text x="1412.0" y="222.15" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#C0651F" text-anchor="middle">Recommended</text>
+<text x="1412.0" y="239.65" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#C0651F" text-anchor="middle">workers</text>
+<rect x="70" y="322" width="1460" height="148" rx="12" fill="#FFFFFF" stroke="#D8E0DB" stroke-width="1.5"/>
+<text x="96" y="350" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#6B7C76" text-anchor="start" letter-spacing="1.1">WHAT THE FEDERATION ADMIN ACTUALLY SEES</text>
+<text x="96" y="384" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#16211E" text-anchor="start">technician</text>
+<rect x="280" y="366" width="96" height="26" rx="5" fill="#F8E7E5"/>
+<text x="328" y="384" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#9E3B32" text-anchor="middle" letter-spacing="1.3">HIGH</text>
+<text x="1504" y="384" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#C0651F" text-anchor="end">6 predicted  ·  +1 worker</text>
+<text x="96" y="418" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#16211E" text-anchor="start">Demand is 63% above the recent daily average.</text>
+<text x="96" y="442" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="14" font-weight="400" fill="#5B6B65" text-anchor="start">Based on 11 booking(s) in the last 14 days = 0.79/day; at 2 jobs per worker per day.</text>
+<rect x="70" y="500" width="1460" height="76" rx="10" fill="#F8EFDC" stroke="#96631A" stroke-width="1.5"/>
+<text x="96" y="530" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#96631A" text-anchor="start">Stated assumption, not a hidden parameter</text>
+<text x="96" y="554" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#5B6B65" text-anchor="start">WORKER_DAILY_CAPACITY = 2 is a declared constant. No capacity data is modelled, and the service claims no machine-learned precision.</text>
+</svg>

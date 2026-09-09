@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="760"
+     viewBox="0 0 1600 760" role="img" aria-label="First-accept-wins — twenty concurrent accepts, one assignment">
+<title>First-accept-wins — twenty concurrent accepts, one assignment</title>
+<defs>
+  <style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');]]></style>
+  <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5"
+          markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#6B7C76"/>
+  </marker>
+  <marker id="ar-p" viewBox="0 0 10 10" refX="9" refY="5"
+          markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#0F6B5C"/>
+  </marker>
+</defs>
+<rect width="1600" height="760" fill="#F7F8F6"/>
+
+<text x="70" y="74" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#6B7C76" text-anchor="start" letter-spacing="1.1">SLIDE 2 · RACE-SAFE DISPATCH</text>
+<text x="70" y="104" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="800" fill="#16211E" text-anchor="start">Twenty workers tap Accept. Exactly one gets the job.</text>
+<rect x="570.0" y="142" width="460" height="52" rx="8" fill="#FFFFFF" stroke="#2F6FB0" stroke-width="2"/>
+<text x="800.0" y="172.9" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#2F6FB0" text-anchor="middle">1 booking broadcast to every eligible worker</text>
+<line x1="130" y1="250" x2="1470" y2="250" stroke="#2F6FB0" stroke-width="3" stroke-linecap="round"/>
+<path d="M 800.0 194 V 244" fill="none" stroke="#2F6FB0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ar)"/>
+<text x="130" y="234" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#2F6FB0" text-anchor="start" letter-spacing="1.1">ALL 20 ACCEPTS ISSUED AT THE SAME INSTANT</text>
+<circle cx="172.0" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="172.0" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="172.0" y1="261" x2="172.0" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="165.0" y1="366" x2="179.0" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="238.10526315789474" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="238.10526315789474" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="238.10526315789474" y1="261" x2="238.10526315789474" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="231.10526315789474" y1="366" x2="245.10526315789474" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="304.2105263157895" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="304.2105263157895" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="304.2105263157895" y1="261" x2="304.2105263157895" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="297.2105263157895" y1="366" x2="311.2105263157895" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="370.3157894736842" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="370.3157894736842" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="370.3157894736842" y1="261" x2="370.3157894736842" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="363.3157894736842" y1="366" x2="377.3157894736842" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="436.42105263157896" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="436.42105263157896" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="436.42105263157896" y1="261" x2="436.42105263157896" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="429.42105263157896" y1="366" x2="443.42105263157896" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="502.5263157894737" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="502.5263157894737" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="502.5263157894737" y1="261" x2="502.5263157894737" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="495.5263157894737" y1="366" x2="509.5263157894737" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="568.6315789473684" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="568.6315789473684" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="568.6315789473684" y1="261" x2="568.6315789473684" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="561.6315789473684" y1="366" x2="575.6315789473684" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="634.7368421052631" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="634.7368421052631" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="634.7368421052631" y1="261" x2="634.7368421052631" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="627.7368421052631" y1="366" x2="641.7368421052631" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="700.8421052631579" cy="250" r="9" fill="#FFFFFF" stroke="#1E7A50" stroke-width="3"/>
+<circle cx="700.8421052631579" cy="250" r="3.5" fill="#1E7A50"/>
+<line x1="700.8421052631579" y1="261" x2="700.8421052631579" y2="366" stroke="#1E7A50" stroke-width="4" stroke-linecap="round"/>
+<circle cx="766.9473684210527" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="766.9473684210527" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="766.9473684210527" y1="261" x2="766.9473684210527" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="759.9473684210527" y1="366" x2="773.9473684210527" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="833.0526315789474" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="833.0526315789474" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="833.0526315789474" y1="261" x2="833.0526315789474" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="826.0526315789474" y1="366" x2="840.0526315789474" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="899.1578947368421" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="899.1578947368421" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="899.1578947368421" y1="261" x2="899.1578947368421" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="892.1578947368421" y1="366" x2="906.1578947368421" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="965.2631578947369" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="965.2631578947369" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="965.2631578947369" y1="261" x2="965.2631578947369" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="958.2631578947369" y1="366" x2="972.2631578947369" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="1031.3684210526317" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="1031.3684210526317" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="1031.3684210526317" y1="261" x2="1031.3684210526317" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="1024.3684210526317" y1="366" x2="1038.3684210526317" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="1097.4736842105262" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="1097.4736842105262" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="1097.4736842105262" y1="261" x2="1097.4736842105262" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="1090.4736842105262" y1="366" x2="1104.4736842105262" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="1163.578947368421" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="1163.578947368421" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="1163.578947368421" y1="261" x2="1163.578947368421" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="1156.578947368421" y1="366" x2="1170.578947368421" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="1229.6842105263158" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="1229.6842105263158" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="1229.6842105263158" y1="261" x2="1229.6842105263158" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="1222.6842105263158" y1="366" x2="1236.6842105263158" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="1295.7894736842106" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="1295.7894736842106" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="1295.7894736842106" y1="261" x2="1295.7894736842106" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="1288.7894736842106" y1="366" x2="1302.7894736842106" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="1361.8947368421054" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="1361.8947368421054" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="1361.8947368421054" y1="261" x2="1361.8947368421054" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="1354.8947368421054" y1="366" x2="1368.8947368421054" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<circle cx="1428.0" cy="250" r="9" fill="#FFFFFF" stroke="#9E3B32" stroke-width="2" opacity="0.55"/>
+<circle cx="1428.0" cy="250" r="3.5" fill="#9E3B32" opacity="0.55"/>
+<line x1="1428.0" y1="261" x2="1428.0" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".38"/>
+<line x1="1421.0" y1="366" x2="1435.0" y2="366" stroke="#9E3B32" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<rect x="130" y="372" width="1340" height="116" rx="12" fill="#E1F0EB" stroke="#0F6B5C" stroke-width="3"/>
+<text x="800.0" y="410" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="800" fill="#0A4F44" text-anchor="middle">Atomic guard — two conditional UPDATEs</text>
+<text x="800.0" y="440" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="13" font-weight="500" fill="#5B6B65" text-anchor="middle">UPDATE Worker  SET availability='BUSY'  WHERE availability='AVAILABLE'</text>
+<text x="800.0" y="464" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="13" font-weight="500" fill="#5B6B65" text-anchor="middle">UPDATE Booking SET workerId=…  WHERE status='REQUESTED' AND workerId IS NULL</text>
+<line x1="700.8421052631579" y1="488" x2="700.8421052631579" y2="540" stroke="#1E7A50" stroke-width="4" stroke-linecap="round"/>
+<rect x="530.8421052631579" y="540" width="340" height="96" rx="12" fill="#E2F2E9" stroke="#1E7A50" stroke-width="2"/>
+<text x="700.8421052631579" y="586" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="30" font-weight="800" fill="#1E7A50" text-anchor="middle">1 × 200</text>
+<text x="700.8421052631579" y="614" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#1E7A50" text-anchor="middle" letter-spacing="1.4">ASSIGNED</text>
+<rect x="1130" y="540" width="340" height="96" rx="12" fill="#F8E7E5" stroke="#9E3B32" stroke-width="2" opacity=".9"/>
+<text x="1300" y="586" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="30" font-weight="800" fill="#9E3B32" text-anchor="middle">19 × 409</text>
+<text x="1300" y="614" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#9E3B32" text-anchor="middle" letter-spacing="1.3">NO LONGER AVAILABLE</text>
+<path d="M 1300 488 V 534" fill="none" stroke="#9E3B32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5 5" opacity=".45"/>
+<text x="70" y="672" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#16211E" text-anchor="start">Why exactly one survives</text>
+<text x="70" y="698" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#5B6B65" text-anchor="start">Under READ COMMITTED a second UPDATE waits for the first to commit, then re-evaluates its WHERE clause against the committed row — and no longer matches.</text>
+<text x="70" y="724" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="400" fill="#5B6B65" text-anchor="start">Verified at 2, 5, 10 and 20 concurrent accepts, asserted against the database rather than the API response.  scripts/v3-verify.py §7</text>
+</svg>

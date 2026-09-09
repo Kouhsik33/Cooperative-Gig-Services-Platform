@@ -5,6 +5,11 @@
 
 generator client {
   provider = "prisma-client-js"
+  // "native" covers local dev (macOS/Linux); the musl target is the
+  // Docker image (node:20-alpine). Pinned so `prisma generate` always
+  // emits the openssl-3.0.x engine rather than the legacy libssl-1.1
+  // one, regardless of what the build host detects.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -230,6 +235,18 @@ model Booking {
   // status PATCH.
   serviceStartedAt   DateTime?
   serviceCompletedAt DateTime?
+
+  // Live-tracking simulation (Swiggy/Rapido-style en-route view). Set
+  // when the worker taps "Start navigating" (ASSIGNED -> ON_THE_WAY):
+  // navFrom* snapshots the worker's position at that moment, navStartedAt
+  // anchors the interpolation. Current position is a pure function of
+  // (navFrom, service coords, elapsed since navStartedAt), so any client
+  // — including one that reconnects mid-trip — computes the same point.
+  // Movement is SIMULATED and deterministic, never real device GPS.
+  navStartedAt DateTime?
+  navFromLat   Float?
+  navFromLng   Float?
+  navDurationSeconds Int?
 
   // Cancellation accountability (master prompt §18). Previously a
   // cancelled booking recorded only the CANCELLED status, so neither the

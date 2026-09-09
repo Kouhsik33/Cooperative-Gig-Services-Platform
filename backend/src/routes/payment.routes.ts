@@ -10,6 +10,8 @@ router.post("/create-order", requireAuth, catchAsync(paymentController.createOrd
 router.post("/webhook", catchAsync(paymentController.razorpayWebhook));
 // Not in Part E — demo-only stand-in for the webhook, see payment.controller.ts.
 router.post("/simulate-callback", requireAuth, catchAsync(paymentController.simulateCallback));
+// Cash on delivery — pay the professional after the job instead of online.
+router.post("/:bookingId/cod", requireAuth, catchAsync(paymentController.payWithCod));
 router.get("/:bookingId/invoice", requireAuth, catchAsync(paymentController.getInvoice));
 
 export default router;

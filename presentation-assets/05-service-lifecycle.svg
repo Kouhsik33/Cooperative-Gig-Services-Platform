@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="600"
+     viewBox="0 0 1600 600" role="img" aria-label="Verified service lifecycle — OTP as enforced boundaries">
+<title>Verified service lifecycle — OTP as enforced boundaries</title>
+<defs>
+  <style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');]]></style>
+  <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5"
+          markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#6B7C76"/>
+  </marker>
+  <marker id="ar-p" viewBox="0 0 10 10" refX="9" refY="5"
+          markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#0F6B5C"/>
+  </marker>
+</defs>
+<rect width="1600" height="600" fill="#F7F8F6"/>
+
+<text x="70" y="66" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#6B7C76" text-anchor="start" letter-spacing="1.1">SLIDE 2 · SERVICE LIFECYCLE</text>
+<text x="70" y="96" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="800" fill="#16211E" text-anchor="start">Two OTP gates the booking cannot move past without the customer</text>
+<rect x="190" y="166" width="1350" height="76" rx="12" fill="#EDF1EE"/>
+<text x="70" y="206" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#2F6FB0" text-anchor="start" letter-spacing="1.1">CUSTOMER</text>
+<rect x="190" y="262" width="1350" height="76" rx="12" fill="#FFFFFF"/>
+<text x="70" y="302" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0F6B5C" text-anchor="start" letter-spacing="1.1">WORKER</text>
+<rect x="190" y="358" width="1350" height="76" rx="12" fill="#EDF1EE"/>
+<text x="70" y="398" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#6B7C76" text-anchor="start" letter-spacing="1.1">SYSTEM</text>
+<rect x="654" y="126" width="92" height="340" rx="10" fill="#FAEDE1" stroke="#C0651F" stroke-width="3"/>
+<text x="700" y="150" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#C0651F" text-anchor="middle" letter-spacing="1.4">OTP</text>
+<text x="700" y="492" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#C0651F" text-anchor="middle" letter-spacing="1.2">START OTP</text>
+<rect x="1084" y="126" width="92" height="340" rx="10" fill="#FAEDE1" stroke="#C0651F" stroke-width="3"/>
+<text x="1130" y="150" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#C0651F" text-anchor="middle" letter-spacing="1.4">OTP</text>
+<text x="1130" y="492" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#C0651F" text-anchor="middle" letter-spacing="1.2">COMPLETION OTP</text>
+<circle cx="250" cy="200" r="9" fill="#FFFFFF" stroke="#2F6FB0" stroke-width="2.5"/>
+<text x="250" y="176" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">Books service</text>
+<circle cx="400" cy="392" r="9" fill="#FFFFFF" stroke="#6B7C76" stroke-width="2.5"/>
+<text x="400" y="355" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">Broadcast to</text>
+<text x="400" y="368" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">eligible workers</text>
+<circle cx="545" cy="296" r="9" fill="#FFFFFF" stroke="#0F6B5C" stroke-width="2.5"/>
+<text x="545" y="272" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">Accepts</text>
+<circle cx="620" cy="296" r="9" fill="#FFFFFF" stroke="#0F6B5C" stroke-width="2.5"/>
+<text x="620" y="272" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">Navigates</text>
+<circle cx="700" cy="200" r="9" fill="#FFFFFF" stroke="#2F6FB0" stroke-width="2.5"/>
+<text x="700" y="176" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">Shares code</text>
+<circle cx="790" cy="296" r="9" fill="#FFFFFF" stroke="#0F6B5C" stroke-width="2.5"/>
+<text x="790" y="272" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">Enters code</text>
+<circle cx="930" cy="296" r="9" fill="#FFFFFF" stroke="#0F6B5C" stroke-width="2.5"/>
+<text x="930" y="272" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">Performs service</text>
+<circle cx="1130" cy="200" r="9" fill="#FFFFFF" stroke="#2F6FB0" stroke-width="2.5"/>
+<text x="1130" y="176" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">Shares code</text>
+<circle cx="1220" cy="296" r="9" fill="#FFFFFF" stroke="#0F6B5C" stroke-width="2.5"/>
+<text x="1220" y="272" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">Enters code</text>
+<circle cx="1340" cy="392" r="9" fill="#FFFFFF" stroke="#6B7C76" stroke-width="2.5"/>
+<text x="1340" y="355" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">Welfare credited</text>
+<text x="1340" y="368" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">+ worker freed</text>
+<circle cx="1450" cy="200" r="9" fill="#FFFFFF" stroke="#2F6FB0" stroke-width="2.5"/>
+<text x="1450" y="176" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="500" fill="#5B6B65" text-anchor="middle">Rates</text>
+<line x1="240" y1="296" x2="1470" y2="296" stroke="#D8E0DB" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+<text x="70" y="540" font-family="Manrope, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#16211E" text-anchor="start">IN_PROGRESS and COMPLETED are unreachable by any plain status update — only a customer-issued, server-validated code moves the booking across a gate.</text>
+<text x="70" y="566" font-family="'IBM Plex Mono', 'SF Mono', Menlo, monospace" font-size="10" font-weight="400" fill="#5B6B65" text-anchor="start">backend/src/controllers/booking.controller.ts · PLAIN_TRANSITIONS · verifyServiceOtp</text>
+</svg>

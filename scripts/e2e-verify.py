@@ -51,9 +51,22 @@ def login(phone):
     return d["accessToken"]
 
 
+def _pg_container():
+    # The compose project name follows the repo directory, so the postgres
+    # container is not always "sih26089-postgres". Resolve it at runtime.
+    out = subprocess.run(
+        ["docker", "ps", "--filter", "ancestor=postgis/postgis:16-3.4",
+         "--format", "{{.Names}}"],
+        capture_output=True, text=True).stdout.strip().splitlines()
+    return out[0] if out else "sih26089-postgres"
+
+
+PG = _pg_container()
+
+
 def sql(q):
     out = subprocess.run(
-        ["docker", "exec", "sih26089-postgres", "psql", "-U", "postgres",
+        ["docker", "exec", PG, "psql", "-U", "postgres",
          "-d", "sih26089", "-t", "-c", q],
         capture_output=True, text=True)
     return out.stdout.strip()

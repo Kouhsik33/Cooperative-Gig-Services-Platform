@@ -218,12 +218,14 @@ needed additions — not errors or workarounds:
   table, since Part E defines no "save forecast" endpoint. Simpler, no
   cache-invalidation questions to answer, but means repeated identical
   DB queries on every page view.
-- **No real device geolocation anywhere.** `DEMO_LOCATION`
-  ([lib/location.ts](mobile-app/src/lib/location.ts), the seeded Pune demo
-  city center) stands in for "the customer's current location" in both
-  `EmergencyBookingScreen` and `WorkerSearchScreen`/`BookingSlotScreen` —
-  no `expo-location` is wired into this Expo scaffold. A real app needs
-  actual GPS, not a hardcoded point shared by every customer.
+- ~~**No real device geolocation anywhere.**~~ **Fixed in the on-device
+  pass** — `expo-location` is now wired in (`lib/geolocation.ts`,
+  auto-fetched on customer entry, real reverse-geocoded pincode).
+  `DEMO_LOCATION` ([lib/location.ts](mobile-app/src/lib/location.ts))
+  remains only as the honest fallback when permission is denied or the
+  fetch fails. Worker-side location is still not device GPS (workers have
+  a seeded lat/lng); address geocoding in `AddAddressScreen` still saves
+  the demo coords (unchanged).
 - **`getNearbyWorkers`'s rating tiebreak uses a 1km distance-tier bucket**
   — a judgment call, not derived from anything in the spec. Wide enough
   for rating to matter among genuinely comparable options, narrow enough
@@ -360,11 +362,11 @@ root cause/fix format, per how the product-flow spec asked for it):
   in any stack.
 
 **New known gaps (surfaced, not silently patched):**
-- No real map provider — `JobDetailScreen`'s "on the way" state shows a
-  static labeled placeholder box, not live GPS tracking. Structured so a
-  real map SDK can be dropped in later; explicitly not faked as live.
-- Live worker-position tracking doesn't exist — there's no continuous
-  location stream, only the lifecycle status transitions themselves.
+- ~~No real map provider~~ / ~~Live worker-position tracking doesn't
+  exist~~ — **both addressed in the live order-tracking phase at the end
+  of this file**: `LiveMap` (webview + Leaflet) on both screens + a
+  backend-driven simulated position stream over Socket.io. Movement is
+  simulated/deterministic by design, not real GPS.
 - Real SMS delivery is muted end to end (`OTP_SMS_ENABLED=false`); OTPs
   land only in the server console log (`[otp:muted] ...`). The
   integration point is real (`otp.service.ts`), just not wired to a
@@ -1088,3 +1090,612 @@ what its label claims.
 `tsc` clean x3; admin Vite build clean; ai-service compiles; Expo bundle
 2.84 MB. i18n 393 keys x 3 in parity, zero missing. Zero hardcoded colours.
 Zero emoji icons in either app. Navigation audit clean.
+
+
+## Deployment-repair pass — docker-compose stack made to actually run,
+## Part A re-audit (done)
+
+A diagnostic pass on a fresh machine checkout (`SIH/UrbanCompanyX/`) found
+the app logic intact but the **deployment wiring broken** — the
+docker-compose stack that "Set up project for local deployment" (6016233)
+introduced had never fully run. Nothing in Phases 1-4 / V2-V4 regressed;
+the breakage was all in build/run config.
+
+### Runtime failures found and fixed (in priority order)
+
+1. **Backend container crash-looped forever** (`Restarting (1)`).
+   `backend/Dockerfile`'s base had been switched (uncommitted) from
+   `node:20-alpine` to `node:20-slim`. `node:20-slim` ships **no libssl at
+   all**, so Prisma's query engine can't load and the process exits 1 on
+   every boot: `Error loading shared library libssl.so.1.1`. `apt-get` is
+   not reachable from image builds in this environment (deb.debian.org
+   times out), so slim can't be repaired with an `openssl` install either.
+   Fix: reverted to `node:20-alpine` (which carries `libssl.so.3`) +
+   `RUN apk add --no-cache openssl` (alpine's CDN *is* reachable) so Prisma
+   detects OpenSSL 3.x, and pinned `binaryTargets = ["native",
+   "linux-musl-openssl-3.0.x"]` in `schema.prisma` so `prisma generate`
+   always emits the 3.0.x engine rather than the legacy libssl-1.1 one.
+   Verified: `docker compose up` → container `Up`, no Prisma warning,
+   serves DB-backed requests and proxies the AI forecast over the compose
+   network.
+
+2. **`GET /forecast/demand` → 500 (Requirement 11 dead end to end).**
+   `docker-compose.yml` handed the Python ai-service
+   `DATABASE_URL=...sih26089?schema=public`. `?schema=` is Prisma-only
+   query-string syntax; psycopg2 rejects it outright (`invalid dsn:
+   invalid URI query parameter: "schema"`), so every forecast request
+   threw, the backend proxy returned 502, and the admin forecast
+   chart/widget had no data. This was present since the **initial commit**
+   — every prior verification ran the ai-service locally (with the correct
+   `ai-service/.env`), never via compose, so it was never exercised. Fix:
+   dropped `?schema=public` from the ai-service env in `docker-compose.yml`
+   (the AI service talks to Postgres directly, not through Prisma).
+   Verified: direct `:8000/forecast/demand` and proxied
+   `:4000/api/forecast/demand` both 200 with real 14-day-SMA rows; v2
+   suite's forecast checks pass.
+
+3. **`npm start` broken.** 6016233 changed `package.json` `start` to
+   `node dist/src/index.js`, but with the current `tsconfig.json`
+   (`include: ["src"]`, uncommitted — correct, keeps the `prisma/seed.ts`
+   dev script out of the app build) `tsc` emits `dist/index.js`. `npm
+   start` therefore `MODULE_NOT_FOUND`-ed, which is what the container's
+   `CMD` runs. Fix: reverted `start` to `node dist/index.js` to match the
+   leaner build. `npm run prisma:seed` / `backfill-services.ts` still
+   type-check and run under the project tsconfig via ts-node (the
+   `bcryptjs` "no default export" error only appears when `tsc` is invoked
+   on the file directly, bypassing `esModuleInterop` — not a real bug).
+
+4. **Verification scripts pointed at the wrong Postgres container.**
+   `scripts/{e2e,v2,v3}-verify.py` hardcoded `docker exec sih26089-postgres`;
+   the compose project name follows the repo directory, so the container
+   is now `urbancompanyx-postgres-1` and every DB assertion silently
+   returned `''`. Added a `_pg_container()` runtime lookup
+   (`docker ps --filter ancestor=postgis/postgis:16-3.4`) to all three.
+
+5. **Test litter from this pass's first (broken) `e2e-verify` run** left
+   one booking `ASSIGNED` and worker `9000000121` stuck `BUSY`, which then
+   failed `v3-verify`'s decline check (it hardcodes that worker). Cleaned
+   up in the DB; all 25 workers back to `AVAILABLE`, seeded in-flight demo
+   bookings preserved.
+
+### Database
+
+The Postgres volume was already populated (25 workers / 143 completed
+bookings / 18 packages / 8 services) via an earlier `prisma db push` — no
+`_prisma_migrations` table, so `prisma migrate deploy` reports "schema not
+empty (P3005)"; that's expected, the schema matches `schema.prisma` and
+needs no action. A genuinely fresh DB still needs `prisma migrate deploy`
+(or `db push`) + `npm run prisma:seed`; neither compose service runs them.
+
+### Part A re-audit — all 12 rows ✅ (R11 was ❌, now fixed)
+
+Read the real screens + controllers and hit every endpoint on the live
+(now fully dockerised) stack.
+
+| # | Requirement | Status | Evidence |
+|---|---|---|---|
+| 1 | Registration + verification | ✅ | OTP register → `OnboardingStatusScreen` worker setup + status stepper; admin verification queue (`/federations/:id/workers` + `PATCH /workers/:id/verify`); "Verified" badge on the matched professional in `BookingTrackingScreen` + service trust block + worker's own profile. (Dispatch model removed customer-facing worker *browsing*, so the badge lands on the assigned pro, not a pick list.) |
+| 2 | Skill profiling + certification | ✅ | `Worker.skills[]` / `certifications[]`; `WorkerProfileScreen` renders both; `GET /services?lat&lng` coverage is computed from real skill-matched nearby workers; dispatch + accept both skill-gated (verified: no-skill accept → 403). |
+| 3 | Booking + scheduling | ✅ | `ServiceCatalog → ServiceDetail → BookingSlot` (day/time chips) → `FairPricingBreakdown` renders the server `pricePreview` (incl. `workerShare`) **before** the Confirm tap that creates the booking. |
+| 4 | Geo matching | ✅ | `matching.service.ts` single per-worker rule, `scoreWorker` 0-100 (pincode 40 / distance 30 / rating 20 / workload 10); dispatch broadcast + ranked worker feed; admin `GeoDemand` page (`/federations/:id/geo-demand` → real pincode demand vs verified headcount). |
+| 5 | Payments + invoicing | ✅ (mock mode) | Razorpay test-mode order + `simulate-callback`; `GET /payments/:id/invoice` + `InvoiceScreen` itemise `workerShare` / `federationFee` / `welfareContribution` as three separate line items (verified on a real paid booking). Gap unchanged: no Razorpay creds → mock order. |
+| 6 | Rating + feedback | ✅ | post-job stars + comment, `Worker.ratingAvg` recompute, shown on `WorkerProfile` + `ServiceDetail` reviews + `GET /services/:id`; rating is a real 20-pt factor in `scoreWorker`. Verified: duplicate rating → 409. |
+| 7 | Welfare + insurance | ✅ | `WelfareFundTransaction` ledger, auto-credit on `COMPLETED` (gated on `payment.paid`), `MyWelfareScreen` running balance + per-job history + demo insurance card; admin welfare-fund + ledger pages. Verified: `/workers/:id/welfare` returns real contributions. |
+| 8 | Emergency booking | ✅ | `POST /bookings/emergency`; distinct emergency CTA on `ServiceCatalogScreen`; urgent banner + bonus line on `JobFeedScreen`. Part F surge re-verified exact: base ₹550 → bonus ₹110, fee ₹55 / welfare ₹16.5 off base only, worker ₹588.5 — surge reaches the worker intact. |
+| 9 | Federation admin dashboard | ✅ | `DashboardHome` KPI cards (active bookings, **avg worker share %**, completion rate, avg rating, workers, welfare balance) + live `BookingsOverview` (socket) + verification queue + worker management + welfare ledger + `GeoDemand` + `DemandForecastWidget`. All endpoints 200 with real data. |
+| 10 | Multilingual | ✅ | i18n en/hi/mr, **393 keys × 3 in parity**, `LanguageSwitcher` on Login + both home screens, `PATCH /auth/language`, locale currency/date formatting. |
+| 11 | AI demand forecasting | ✅ **(was ❌ — fixed this pass)** | `ai-service` 14-day-SMA over real booking history, backend proxy, rendered as a **recharts `BarChart`** on `DashboardHome` + `DemandForecast` page with a recommended-worker-allocation list and an explainable `basis` string. Broke only because of the compose `DATABASE_URL` bug above. |
+| 12 | Fair wages / welfare / trust, woven through | ✅ | (a) `FairPricingBreakdown` split before pay, (b) `EarningsScreen` itemised per-job split, (c) dashboard avg-worker-share card + `/federations/:id/fairness-metrics`, plus `GET /impact` real cooperative stats (21 verified workers / 143 completed / ₹1,962 welfare / 87.2% avg share) on the customer home. |
+
+### Verification run this pass
+
+- `tsc --noEmit` clean: backend, mobile-app, admin-web. admin-web Vite
+  build clean. ai-service compiles; `/docs` 200; `/forecast/demand` 200
+  with real rows.
+- Expo Android bundle **2.84 MB**, clean.
+- Full **docker-compose stack** (`postgres` + `backend` + `ai-service`)
+  built and healthy; backend proxies the forecast over the compose
+  network; admin-web `npm run dev` serves on :5173 against it.
+- `scripts/e2e-verify.py` **29/29**, `scripts/v2-verify.py` **30/30**,
+  `scripts/v3-verify.py` **40/40** — all green against the dockerised
+  backend.
+- Part A: every one of the 12 requirements returns real data from a live
+  endpoint and has a screen.
+
+### Known gaps (unchanged / newly surfaced)
+
+- All prior gaps stand (no live GPS / map provider, no push, Razorpay in
+  mock mode, ai-service couples to the Postgres schema, seed is not
+  idempotent, decline is client-only, in-process `setInterval` expiry).
+- **`node:20-slim` is unusable for this backend** — documented in the
+  Dockerfile itself so it isn't "helpfully" switched back.
+- **`components/ui/WorkerCard.tsx` is now dead code** — only re-exported
+  from the `ui` barrel, imported by no screen since `WorkerSearchScreen`
+  was deleted in the dispatch phase. Left in place (not this pass's scope
+  to delete files); flagged so it isn't mistaken for a live component.
+- **Neither compose service runs migrations or the seed** — fine against
+  the already-populated volume, but a fresh deploy needs them run by hand.
+- The seeded in-flight demo bookings don't set their worker to `BUSY`, so
+  those ~5 workers can still be dispatched to — cosmetic for the dashboard
+  demo, real for a strict concurrency read; unchanged from the dispatch
+  phase's best-effort scoping note.
+
+
+## On-device pass — booking-mutation crash, tab keep-alive, back-nav (done)
+
+Found by running the app on a real phone through Expo Go (see `RUN.md`),
+not by code review.
+
+### The crash: white screen after "Keep searching" (and every other
+### post-assignment action)
+
+`BookingTrackingScreen` and `JobDetailScreen` both take a booking-mutation
+response and `setBooking(...)` it directly, then render
+`booking.service.name` / `booking.customer.name` / `booking.worker.user.name`.
+But most mutation endpoints returned a **bare `prisma.booking.update()`
+with no `include`** — `redispatchBooking` had none at all — so those
+relations came back `undefined` and the screen crashed with
+`TypeError: Cannot read property 'name' of undefined`, rendering nothing
+(white screen, Hermes reports an unhandled error). `keepSearching` →
+`POST /:id/redispatch` was the reported trigger; `confirmCancel`,
+`reschedule`, and every `verifyServiceOtp` / `requestCompletion` /
+`accept` transition had the same latent bug.
+
+Fix (`backend/src/controllers/booking.controller.ts`): one canonical
+`bookingClientInclude` + `bookingForClient(id)` helper, and **every**
+booking response to the app now goes through it — `createBooking`,
+`acceptBooking`, `redispatchBooking`, `rescheduleBooking`,
+`updateBookingStatus`, `requestCompletion`, and all three
+`verifyServiceOtp` exits. The shape no longer depends on which endpoint
+produced it. Frontend also hardened: `booking.service?.name ?? ""` in
+both hubs so a bad shape degrades instead of white-screening. Verified:
+`redispatch` / `reschedule` / `cancel` all return `service` + `customer`
++ `worker` + `eligibleWorkerCount`; e2e 29 / v2 30 / v3 40 still green.
+
+### BottomTabs — comment corrected, keep-alive is not possible here
+
+`navigation/BottomTabs.tsx`'s comment claimed each tab was "kept alive
+(hidden via display:none)" — the code never did that (the `visited` set
+and `styles.hidden` were dead) and **it can't**: mounting more than one
+tab's `NativeStackNavigator` at once throws
+`Error: Another navigator is already registered for this container`
+(react-navigation's `EnsureSingleNavigator` — hit the moment you tap a
+second tab). A first attempt to render every visited tab crashed exactly
+this way on-device. Reverted to rendering only the active tab and fixed
+the comment to say so. The trade-off (switching away and back resets that
+tab's inner stack to its initial screen) stands — the only real fixes are
+`@react-navigation/bottom-tabs` (can't install, no network) or an
+independent `NavigationContainer` per tab (breaks notification
+deep-linking, which routes through the root container).
+
+### Back navigation after a booking is placed
+
+Once the booking exists, the slot picker / pricing / payment screens
+behind it are stale — the native back arrow from `BookingTracking` went
+to a completed `Checkout`, `Checkout`'s "Track booking" **pushed** the
+tracking screen (leaving Checkout in the stack), and its own back went
+back to the tracking screen — a redirect loop the user hit and reported
+as "couldn't get to any other page" (which also blocked reaching
+Profile → Log out).
+- `FairPricingBreakdownScreen` Confirm → `navigation.replace("Checkout")`
+  (booking already created, so no re-confirm).
+- `CheckoutScreen` — after online pay **or** COD → `navigation.reset` to
+  `[tab home] → [BookingTracking]`, so both the header back arrow and the
+  tracking screen's own escape land on the tab's home.
+- `BookingTrackingScreen` now has a guaranteed way out in **every** state:
+  a "Back to Home" header button + body button, both `navigation.popToTop()`
+  (the safe primitive — no route-name introspection). Plus a
+  `useFocusEffect` refetch so the booking reflects the payment / an
+  assignment made while the user was on Checkout or another tab.
+- `Chat` screen headers now show the other party's name instead of a
+  blank bar (customer + all 3 worker stacks).
+
+### Cash-on-delivery payment option (§ "keep cod option")
+
+`CheckoutScreen` now offers **Pay online now** (the existing simulated
+Razorpay capture) and **Pay cash after service**. New
+`POST /api/payments/:bookingId/cod` marks the `Payment` row `status:"cod"`
+/ `razorpayId:"COD"` — no money moves, the booking dispatches normally.
+On the `SERVICE_COMPLETION` OTP transition a `cod` payment flips to
+`paid` (`paidAt` set) inside the same transaction that credits welfare,
+so every downstream check (`status === "paid"`, welfare accrual, invoice)
+is correct — welfare accrues identically to an online payment because the
+federation's cut is a % of the job regardless of settlement method.
+Invoice carries `paymentMethod: "cod" | "online"`. Verified end to end:
+COD booking → lifecycle → completion flips payment to paid, welfare
+credited exactly the `welfareContribution`, invoice shows the method.
+e2e 29 / v2 30 / v3 40 unchanged.
+
+### Real device location (§ "location should fetch automatically")
+
+*(Superseded by the live-tracking phase below — reverted per "keep the
+DEMO_LOCATION constraint". `expo-location` removed; `lib/geolocation.ts`
+deleted; `LocationContext` back to saved-address-or-`DEMO_SERVICE_LOCATION`;
+`LocationPickerScreen`'s "Use current location" resolves to the fixed
+demo point. Location is deliberately never real GPS so the simulated
+tracking demo is identical every run.)*
+
+### cloudflared needs `--protocol http2` on this network
+
+The default QUIC transport is dropped by the corporate firewall — the
+quick tunnel loops on `control stream encountered a failure while
+serving`, `/ready` stuck at `readyConnections: 0`, and the phone can't
+reach the backend even though `cloudflared` "started". `--protocol http2`
+(TCP/443) connects and holds. Documented in `RUN.md` §2.
+
+
+## Live order-tracking + OTP-gated lifecycle (Swiggy/Rapido-style) — done
+
+A full en-route tracking experience with a real map on both sides, a
+deterministic **simulated** worker-movement animation, live ETA, and both
+OTP gates enforced server-side. Movement is SIMULATED and time-based —
+never real device GPS — so the demo runs identically every time.
+
+### What already existed (extended, not rebuilt)
+
+The whole OTP-gated lifecycle was already there and server-enforced:
+- `ASSIGNED → ON_THE_WAY → ARRIVED` via `PATCH /bookings/:id/status`.
+- Reaching `ARRIVED` auto-generates the SERVICE_START OTP + `emitOtpReady`.
+- `GET /bookings/:id/service-otp?purpose=…` (customer reads it),
+  `POST /bookings/:id/service-otp/verify` (worker submits) — wrong OTP →
+  400, correct → `ARRIVED→IN_PROGRESS` + `serviceStartedAt`.
+- `POST /bookings/:id/request-completion` → `IN_PROGRESS→COMPLETION_PENDING`
+  + SERVICE_COMPLETION OTP; verify → `COMPLETED` + welfare credit +
+  worker freed.
+- `verifyOtp` (otp.service.ts): attempt counter, expiry, lockout.
+- `PLAIN_TRANSITIONS` already blocks a worker self-advancing to
+  `IN_PROGRESS`/`COMPLETED` without the OTP.
+
+Nothing about the OTP mechanics changed — the gates were already real.
+
+### Map — `react-native-webview` + Leaflet + OSM tiles
+
+`components/ui/LiveMap.tsx`. Chosen over `react-native-maps` because
+Android-in-Expo-Go needs a Google Maps key that `app.json` config (which
+Expo Go ignores) can't supply → blank-map risk. WebView + Leaflet works
+in Expo Go with no dev-client rebuild, identical on iOS/Android, no key.
+The worker marker is driven purely from RN via `injectJavaScript`
+(2 s-tweened `setLatLng`), so it shows exactly the backend's simulated
+position. Tiles need internet (the demo has it via the tunnels).
+
+### Simulated movement — backend-authoritative, time-based
+
+New `services/trackingSimulator.service.ts`. When the worker taps **Start
+navigating** (`ASSIGNED→ON_THE_WAY`), the controller snapshots the
+worker's coords + `navStartedAt` + `navDurationSeconds` (45) onto the
+Booking (new nullable columns `navStartedAt`/`navFromLat`/`navFromLng`/
+`navDurationSeconds`), and starts a 2 s interval. Each tick interpolates a
+straight line worker→customer with smoothstep easing and emits
+`booking:location {latitude, longitude, etaSeconds, distanceKm, progress,
+phase}`. At `progress ≥ 1` it auto-transitions `ON_THE_WAY→ARRIVED` via
+`markArrived()` — the one place the ARRIVED side-effects live, shared with
+the manual "I've arrived" button.
+
+Position is a **pure function of `navStartedAt`**, so it survives
+everything: `GET /bookings/:id/tracking` lets a screen mounting mid-trip
+(e.g. after a one-device re-login) catch up and then follow the socket;
+an overdue trip auto-completes to ARRIVED on that read; a backend restart
+mid-trip loses only the push cadence, not the position.
+
+### Socket.io — reused, one event added
+
+Reused: `booking:statusUpdate` (every transition), `booking:otpReady`
+(OTP nudge), and the `customer:<userId>` / `worker:<workerId>` /
+`federation:<fedId>` rooms. **Added exactly one:** `booking:location`,
+via `emitBookingLocation()` in `socket/events.ts` (same best-effort
+pattern as `emitBookingEvent`). No second realtime system. Mobile:
+`lib/tracking.ts` `useLiveTracking(bookingId, active)` — one REST
+catch-up then the socket; used by both `BookingTrackingScreen` and
+`JobDetailScreen`, which now render `LiveMap` (moving marker + route +
+ETA/distance overlay) for `ASSIGNED`/`ON_THE_WAY`/`ARRIVED`.
+
+### Distance restriction removed (§4)
+
+It lived in exactly one place: `matching.service.ts` `isEligible()` (the
+`distance ≤ 25 km || pincodeMatch` gate). `isEligible()` now returns
+`true` — eligibility is skill + verified + available only (those filters
+are in `loadCandidates`). Distance and pincode did NOT stop mattering:
+they're still the two dominant *ranking* signals in `scoreWorker`
+(70/100 points), so the nearest in-area worker still surfaces first —
+they just never exclude anyone now. Every call site (`findEligibleWorkers`,
+the worker's REST feed, `service.controller`'s coverage) goes through
+this one predicate, so nothing drifts.
+
+### Deterministic demo accounts
+
+`prisma/demo-tracking-setup.ts` — **idempotent**, does NOT re-run the
+(non-idempotent) seed. Pins:
+- Customer **9000000201** — default "Home" address at Kothrud, Pune
+  (`18.5074, 73.8077`), pincode 411038.
+- Worker **9000000121** (Deepak Sharma, AC/technician, VERIFIED) — starts
+  `18.5236, 73.8180`, ~2.1 km NE → ~45 s simulated drive.
+- Backup workers **9000000122 / 9000000123** — nearby, for repeat demos.
+
+Run once after seeding: `cd backend && npx ts-node prisma/demo-tracking-setup.ts`
+
+### Demo credentials
+
+| Role | Phone | Secret | Client |
+|---|---|---|---|
+| Customer | `9000000201` | OTP `0000` | Expo Go |
+| Worker | `9000000121` | OTP `0000` | Expo Go |
+| (backup workers) | `9000000122`, `9000000123` | OTP `0000` | Expo Go |
+| Federation admin | `9000000001` | password `password123` | admin-web |
+
+All `900000…` phones take OTP `0000` (no SMS). Wrong OTP at either gate → rejected.
+
+### Demo steps (one device or two)
+
+1. **Customer** (`9000000201` → OTP `0000`). Home → pick **AC Servicing**
+   (or Appliance Repair) → package → slot → **Confirm** → **Checkout**:
+   pay online *or* **Pay cash after service** → lands on **Track Booking**.
+2. *One device:* Track Booking → **Back to Home** → Profile → **Log Out**.
+   *(booking stays server-side in `REQUESTED`.)*
+3. **Worker** (`9000000121` → OTP `0000`). **Jobs** tab → "New requests"
+   → the booking is there (no distance limit) → **Accept** → opens
+   **Job Details**.
+4. Worker taps **Start navigating**. Map appears; the worker marker
+   drives toward the customer over ~45 s, ETA + distance counting down.
+   *(Two devices: the customer's Track Booking shows the same marker
+   moving live.)* At the end it auto-flips to **ARRIVED** (or worker taps
+   "I've arrived" early).
+5. **START-OTP gate.** Customer's Track Booking shows a 4-digit code
+   (`0000` for demo). Customer reads it out. Worker enters it on Job
+   Details → **Start service**. A wrong code is rejected. Status →
+   **IN PROGRESS**.
+6. Worker taps **Complete service** → status **COMPLETION_PENDING**.
+7. **END-OTP gate.** Customer's screen shows the completion code (`0000`);
+   worker enters it → **COMPLETED**. Only now does the welfare-fund
+   credit fire (if the booking was paid). Wrong code rejected.
+8. Customer: **Rate** the professional.
+
+### Verification (live, two Socket.io sessions)
+
+- `tsc --noEmit` clean: backend + mobile-app. Expo Android bundle
+  **2.88 MB**, `react-native-webview` linked, no Metro errors.
+- Two socket clients (customer 9000000201 + worker) against one booking:
+  **25 `booking:location` events on each side** over the drive; marker
+  moved `18.5188,73.8231 → 18.5074,73.8077`; `progress 0→1`, `eta 45→0`;
+  auto `ON_THE_WAY→ARRIVED`; both sides got every `booking:statusUpdate`.
+- OTP gates: wrong START code → 400, correct → IN_PROGRESS; wrong END
+  code → 400, correct → COMPLETED. Worker cannot read the customer's OTP
+  (403, unchanged). Worker cannot PATCH straight to IN_PROGRESS/COMPLETED.
+- Distance gate gone: an out-of-area booking now reaches the worker feed.
+- `e2e-verify` 29 / `v2-verify` 30 / `v3-verify` 40 — all still green.
+
+### New known gaps
+
+- The tracking simulator's interval is an in-process `setInterval` (like
+  `bookingExpiry.service.ts`). Fine for one backend process; the
+  time-based position + lazy `markArrived` on `GET /tracking` mean a
+  restart mid-trip still resolves correctly, but move it behind a real
+  scheduler for multi-instance.
+- Leaflet tiles need internet; offline, the map is blank grid (markers +
+  route still render). Acceptable for a connected demo.
+- The route is a straight line, not road-snapped (no routing provider).
+- `components/ui/MapPanel.tsx` is now unused (superseded by `LiveMap`),
+  left in place — not this phase's scope to delete files.
+
+
+## Navigation & state-consistency fix — real tab navigator (done)
+
+The live-tracking phase surfaced navigation bugs that trapped the user.
+Diagnosed to **one architectural root cause** plus one separate
+authorization bug.
+
+### Root cause: the bottom-tab shell was not a navigator
+
+`navigation/BottomTabs.tsx` was hand-rolled — `useState` for the active
+tab, the tab's stack navigator rendered inside a bare `<View
+StyleSheet.absoluteFill>`, a plain `<View>` of `TouchableOpacity`s as the
+bar. React Navigation had no idea it existed. Consequences:
+- **Bottom nav dead on Track Booking.** native-stack renders screens as
+  native `RNSScreen` views; those sit above the JS `<View>` tab bar in
+  Android's view hierarchy, so the bar painted but never got touches. Only
+  in-screen buttons (Cancel) worked. Worse once `LiveMap`'s WebView (a
+  hardware-layered native view) was on the screen.
+- **`POP_TO_TOP was not handled by any navigator`** (7× in the Metro
+  log). The tab stacks nested one level deeper than React Navigation
+  expects, so `CheckoutScreen`'s `navigation.reset(...)` landed on a stack
+  whose resulting state wasn't what the code assumed — Track Booking
+  ended up the only screen in its stack, every `popToTop()` bubbled to
+  the root unhandled.
+- **Stale state.** One tab mounted at a time, others' state destroyed on
+  switch; screens held `useState` snapshots and drifted.
+
+**Fix: `@react-navigation/bottom-tabs@6.6.1`** (installed — the network
+that let `react-native-webview` / `@expo/ngrok` in this session works).
+`BottomTabs.tsx` is now a thin wrapper around `createBottomTabNavigator`.
+Real nested navigators: the library owns the tab-bar layout + safe-area +
+touch handling and keeps the bar working over any pushed screen;
+`popToTop` / cross-tab `navigate` resolve by construction. The custom
+`TabSwitchContext` collapsed to `useNavigation().navigate(tabName)` — the
+3 call sites (`switchTab("emergency"/"jobs"/"home")`) are unchanged.
+The band-aid "Back to Home" header + body buttons added to
+`BookingTrackingScreen` last phase were **removed** — redundant with a
+working tab bar + native header back.
+
+### Secondary bug: worker notification → "Try again"
+
+A `NEW_REQUEST` / `REQUEST_TAKEN_ELSEWHERE` notification references a
+booking the worker doesn't own; the worker wrapper deep-linked to
+`JobDetail` → `GET /bookings/:id` → **403** → error state. Fixes:
+- `NotificationsScreen` passes the whole `AppNotification` (not just
+  `bookingId`) via `onOpenNotification`, so each role's wrapper routes by
+  type. Worker: `NEW_REQUEST` / `REQUEST_TAKEN_ELSEWHERE` /
+  `EMERGENCY_BOOKING` / `UNASSIGNED_BOOKING` → the **Jobs feed** (where
+  Accept lives); everything else → `JobDetail` (their own job).
+- `JobDetailScreen` now derives ownership from live state, not an
+  assumption: a `REQUESTED`/unassigned booking renders as a request with
+  **Accept / Decline**; one assigned to someone else renders "Already
+  assigned" + Back; only a booking assigned to *this* worker shows the
+  lifecycle UI.
+- Backend `getBooking` also allows a worker who has a
+  `BookingWorkerResponse` row (accepted-then-lost / cancelled-after-accept)
+  — defence in depth so those notifications never 403.
+
+### State consistency — one hook, everywhere
+
+New `lib/useBookingSync.ts` — `useFocusEffect` reload + subscribe to the
+booking lifecycle / dispatch socket events already emitted
+(`booking:statusUpdate` / `booking:new` / `booking:dispatchRequest` /
+`booking:noLongerAvailable` / `booking:emergency`). No new events, no
+second realtime system. Applied to `BookingsListScreen`,
+`WorkerHomeScreen`, `JobDetailScreen`, `ServiceCatalogScreen` (active-
+booking card); `JobFeedScreen` gained a focus reload alongside its
+existing (correct) socket wiring. Every booking-showing screen now
+reflects a cancel / complete / advance by the other party or the tracking
+simulator instead of freezing on a snapshot.
+
+### Verification
+
+- `tsc --noEmit` clean (backend + mobile); Expo Android bundle
+  **2.96 MB**, `@react-navigation/bottom-tabs` linked, no Metro errors.
+- Full lifecycle re-run (localhost + tunnel transport confirmed
+  separately): booking → accept → ON_THE_WAY starts the sim → 25
+  `booking:location` events per side → auto ARRIVED → wrong START OTP 400
+  / correct → IN_PROGRESS → request-completion → wrong END OTP 400 /
+  correct → COMPLETED. Tracking, OTP gates, sockets **unchanged**.
+- `getBooking`: worker with a response row → 200; unrelated worker → 403
+  (unchanged); customer → 200.
+- `e2e-verify` 29 / `v2-verify` 30 / `v3-verify` 40 — all green (a
+  transient v3 "request visible before declining" fail was stuck test
+  litter — a BUSY worker from an earlier in-session test — not a
+  regression; cleaned and re-passed).
+
+
+## Regression-risk verification after tracking/OTP/nav work (nothing broken)
+
+Three "did recent changes break existing behaviour" checks, each
+reproduced against the live backend — **all three passed; no fixes
+needed.**
+
+### 1. Welfare credit still fires exactly once, at COMPLETED
+
+Full booking → COMPLETION_PENDING → END-OTP verify → COMPLETED. Result
+(base ₹550 service → 3% = ₹16.5; on a ₹500 base it is exactly ₹15):
+- Exactly **1** `WelfareFundTransaction` row for the booking, `amount`
+  = `booking.welfareContribution` (₹16.5), `WelfareFund.balance` delta
+  **exactly ₹16.5**.
+- Only one code path creates that row (`verifyServiceOtp`,
+  SERVICE_COMPLETION branch) — `capturePayment` never touches welfare
+  (confirmed by grep + the payment.controller comment).
+- **No double-fire:** replaying the completion OTP verify returns
+  `400 "Booking must be COMPLETION_PENDING…"` (status is already
+  COMPLETED); fund unchanged, still 1 row. The `verifyOtp` module also
+  marks the OTP `verifiedAt`, so a replayed code fails `not_found`.
+- **Not skipped:** the unpaid baseline (no payment row) completes fine
+  and correctly credits **0** — the documented "must be paid" gate, not
+  a bug.
+
+### 2. COD completions DO credit welfare
+
+A COD booking sets `Payment.status = "cod"`. `verifyServiceOtp`'s
+completion gate is `payment.status === "paid" || payment.status ===
+"cod"`, and the crediting `$transaction` also flips `cod → paid`
+(`paidAt` set) atomically. Verified: COD booking → completion → **1**
+welfare txn of ₹16.5, fund delta ₹16.5, `payment.status` ends `paid`,
+replay → 400 no double credit. **COD does not silently skip welfare.**
+
+### 3. Double-accept race is prevented server-side
+
+Distance gating is gone, so more workers see each request. Re-verified
+under real concurrency: **12 simultaneous `POST /accept`** from 3
+technician workers on one booking → **exactly 1 × 200, 11 × 409**, zero
+errors. DB: exactly one assigned `workerId`, status ASSIGNED, one BUSY
+worker among the three. The loser gets a clean
+`409 "This request is no longer available."` **and** a
+`REQUEST_TAKEN_ELSEWHERE` notification, and the request drops out of
+their incoming feed. The guarantee is the two atomic `updateMany` claims
+in `acceptBooking` (worker AVAILABLE→BUSY, then booking
+REQUESTED/null→ASSIGNED) — unchanged by the distance-gate removal.
+
+
+## Part A requirement traceability — full re-audit (current true status)
+
+Read the real screens + backend + hit every endpoint on the live stack.
+**All 12 rows ✅.**
+
+| # | Requirement | Status | Where it's visible / evidence |
+|---|---|---|---|
+| 1 | Registration + federation verification | ✅ | OTP register → `OnboardingStatusScreen` (worker setup + status stepper); admin `WorkerVerificationQueue` (approve/reject with skills+certs); "Verified" on the matched pro in `BookingTrackingScreen` + `WorkerProfileScreen` `VerifiedBadge`; `GET /workers/:id` returns `verificationStatus`. |
+| 2 | Skill profiling + certification | ✅ | `Worker.skills[]` / `certifications[]` → `WorkerProfileScreen` skill chips + cert chips; `ServiceDetailScreen` shows category + inclusions/exclusions; dispatch + accept skill-gated (v3: no-skill accept → 403). |
+| 3 | Booking + scheduling + estimated worker earning | ✅ | `ServiceCatalog → ServiceDetail → BookingSlot` (day + time chip picker) → `FairPricingBreakdown` renders `PriceBreakdown` incl. **`workerShare`** from the server `pricePreview`, before the Confirm tap that creates the booking. |
+| 4 | Geo-location matching | ✅ | `matching.service.ts` `scoreWorker` (pincode 40 / distance 30 / rating 20 / workload 10); worker `dispatch/incoming` feed ranked with `distanceKm`; **`LiveMap` on both `BookingTrackingScreen` and `JobDetailScreen`** with live ETA + distance during travel; admin `GeoDemand` page (`/federations/:id/geo-demand` → real pincode demand vs verified headcount). |
+| 5 | Digital payments + invoicing | ✅ (mock mode) | `CheckoutScreen` — **Pay online** (simulated Razorpay capture) or **Pay cash after service (COD)**; `GET /payments/:id/invoice` + `InvoiceScreen` itemise **`workerShare` / `federationFee` / `welfareContribution` as 3 separate line items** (verified on a paid booking), plus `paymentMethod: cod|online`. Gap unchanged: no real Razorpay keys → mock order. |
+| 6 | Rating + feedback | ✅ | `RatingScreen` (stars + comment + highlight chips), `Worker.ratingAvg` recompute, shown on `WorkerProfileScreen` + `ServiceDetailScreen` reviews list + `GET /services/:id` (`ratingAvg` 4.3, 35 ratings). Rating is a **real 20-pt factor in `scoreWorker`** (feeds match ranking). Verified: duplicate rating → 409. |
+| 7 | Worker welfare + insurance | ✅ | `WelfareFundTransaction` ledger; auto-credit at COMPLETED (verified §1 above); **`MyWelfareScreen`** — running total + per-job contribution log + mocked insurance status card, a first-class Welfare tab. Admin welfare-fund + ledger pages. |
+| 8 | Emergency / on-demand booking | ✅ | Visually distinct emergency CTA on `ServiceCatalogScreen` (red card → Emergency tab → `EmergencyBookingScreen`); urgent styling + bonus line on the worker's `JobFeedScreen` / `RequestCard`. `POST /bookings/emergency` re-verified this audit: base ₹550 → bonus ₹110, **fee ₹55 and welfare ₹16.5 computed off base only**, worker ₹588.5 = total − fee − welfare. |
+| 9 | Federation admin dashboard | ✅ | `DashboardHome` KPI cards (active bookings, **avg worker share %**, completion rate, avg rating, workers, welfare balance, still-searching) + `DemandForecastWidget` (recharts bar chart) + `BookingsOverview` (live) + `WorkerVerificationQueue` + `WorkerManagement` + `WelfareFundLedger` + `GeoDemand`. All 8 federation endpoints 200 with real data. Vite build clean. |
+| 10 | Multilingual | ✅ | i18n en/hi/mr, **411 keys × 3 in parity**; `LanguageSwitcher` on Login + both home screens + both profile screens; `PATCH /auth/language` 200; locale currency/date formatting. |
+| 11 | AI demand forecasting | ✅ | `GET /forecast/demand` → 7 rows, each with `predictedBookings` / `recommendedWorkers` / `basis` ("24 bookings in 14 days = 1.71/day; at 2 jobs per worker per day") / `trendPercent` / `demandLevel`. Rendered as a **recharts `BarChart`** on `DashboardHome` + the `DemandForecast` page with a recommended-allocation list + per-skill shortage/surplus line. |
+| 12 | Wage transparency woven through | ✅ | (a) `FairPricingBreakdownScreen` split + coop note before pay; (b) `EarningsScreen` running total + per-job `PriceBreakdown` (same component as the customer side); (c) `DashboardHome` "avg worker share, all completed jobs" card + `/fairness-metrics` (87.1%); plus `GET /impact` real stats (22 verified workers / 160 completed / ₹2,044.5 welfare / 87.1% avg share) on the customer home. |
+
+### Audit verification run
+
+- `tsc --noEmit` clean: backend + mobile-app. admin-web `tsc` + Vite
+  build clean.
+- `e2e-verify` 29 / `v2-verify` 30 / `v3-verify` 40 — all green.
+- Every one of the 12 endpoints returns real data; every row has a
+  judge-tappable screen.
+- No stuck workers (26/26 AVAILABLE), demo accounts reset via
+  `demo-tracking-setup.ts`.
+
+
+## Telugu locale, admin session persistence, horizontal-overflow pass (done)
+
+### admin-web logged out on every page refresh — fixed
+
+`AuthContext` kept the token + user only in React state, so a browser
+refresh dropped the session. Now:
+- Login persists `{ user, accessToken, refreshToken }` to `localStorage`
+  (`sih26089-admin-session`); rehydrated synchronously in the `useState`
+  initialiser (no login-page flash).
+- On mount the axios `Authorization` header + socket are restored from the
+  stored token.
+- The access token is short (15 min); a new axios **response interceptor**
+  catches `401`, calls `POST /auth/refresh` with the stored refresh token
+  once, retries the request, and only `logout()`s if the refresh itself
+  fails. So the session survives refresh *and* the 15-min expiry, for up
+  to the 7-day refresh-token lifetime.
+- `lib/socket.ts` `connectSocket` now reconnects when the token changes
+  (socket.io only checks auth on connect), so a silent refresh keeps the
+  live feed alive.
+- Verified: `/auth/refresh` with a valid token → new access token that
+  works; bad token → 401 → logout.
+
+### Telugu (`te`) added — 4th full locale
+
+`src/i18n/te.json` — **all 412 keys**, at parity with en/hi/mr, every
+`{{placeholder}}` preserved (checked). `i18n/index.ts` exports
+`SUPPORTED_LANGUAGES = ["en","hi","mr","te"]`; `LanguageSwitcher` maps
+over that list. Backend `PATCH /auth/language` now whitelists those four
+(`400 "Unsupported language: xx"` otherwise). `AuthContext.applySession`
+restores `user.language` on login via `i18n.changeLanguage`, so a chosen
+language (hi/mr/te) survives logout→login. Verified: `PATCH … {te}` →
+200, persisted, restored on re-login; `{xx}` → 400.
+
+### Horizontal overflow / clipping
+
+Telugu strings are longer than the English source, which exposed
+label↔value rows that had no shrink behaviour — the value could get
+pushed off-screen with no way to see it. Fixed the shared + flow
+components to the same pattern (`label` `flexShrink: 1` and wraps,
+`value` `flexShrink: 0` right-aligned, `gap` between):
+- `components/ui/PriceBreakdown.tsx` (used on FairPricing / Invoice /
+  Earnings / JobDetail).
+- `FairPricingBreakdownScreen` `SummaryRow`, `CheckoutScreen` summary
+  rows, `ServiceDetailScreen` "where your money goes" split,
+  `MyWelfareScreen` transaction rows.
+- `LanguageSwitcher` is now a horizontal `ScrollView` so 4 chips scroll
+  on a narrow screen instead of clipping.
+- admin-web tables were already `overflow-x-auto` + `min-w-[720px]`
+  (unchanged, re-checked).
+
+### Verification
+
+- `tsc` clean: backend + mobile + admin-web. admin-web Vite build clean.
+  Expo Android bundle **2.99 MB**, Telugu strings present, no Metro
+  errors.
+- `e2e-verify` 29 / `v2-verify` 30 / `v3-verify` 40 — all green.
+- i18n: 412 keys × 4 locales, full parity, zero placeholder mismatches.

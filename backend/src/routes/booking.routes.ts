@@ -22,6 +22,7 @@ router.post("/:id/redispatch", catchAsync(bookingController.redispatchBooking));
 router.patch("/:id/status", catchAsync(bookingController.updateBookingStatus));
 router.post("/:id/reschedule", catchAsync(bookingController.rescheduleBooking));
 router.post("/:id/request-completion", catchAsync(bookingController.requestCompletion));
+router.get("/:id/tracking", catchAsync(bookingController.getBookingTracking));
 router.get("/:id/service-otp", catchAsync(bookingController.getServiceOtp));
 router.post("/:id/service-otp/verify", catchAsync(bookingController.verifyServiceOtp));
 router.post("/:id/rating", catchAsync(ratingController.submitRating));

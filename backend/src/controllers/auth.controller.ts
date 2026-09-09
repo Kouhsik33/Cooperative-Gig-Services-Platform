@@ -158,10 +158,16 @@ export async function refresh(req: Request, res: Response) {
   }
 }
 
+// Part G — the languages the mobile app ships translations for.
+const SUPPORTED_LANGUAGES = ["en", "hi", "mr", "te"];
+
 export async function updateLanguage(req: Request, res: Response) {
   const { language } = req.body ?? {};
   if (!language) {
     return res.status(400).json({ error: "language is required" });
+  }
+  if (!SUPPORTED_LANGUAGES.includes(language)) {
+    return res.status(400).json({ error: `Unsupported language: ${language}` });
   }
 
   const user = await prisma.user.update({

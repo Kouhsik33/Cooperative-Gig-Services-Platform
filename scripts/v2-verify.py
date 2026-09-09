@@ -45,6 +45,16 @@ def login_otp(phone):
     return req("POST", f"{API}/auth/otp/verify", body={"phone": phone, "otp": "0000"})[1]["accessToken"]
 
 
+def _pg_container():
+    out = subprocess.run(
+        ["docker", "ps", "--filter", "ancestor=postgis/postgis:16-3.4", "--format", "{{.Names}}"],
+        capture_output=True, text=True).stdout.strip().splitlines()
+    return out[0] if out else "sih26089-postgres"
+
+
+PG = _pg_container()
+
+
 def check(label, ok, detail=""):
     global passed, failed
     if ok:
@@ -58,7 +68,7 @@ wt = login_otp("9000000100")
 _, admin = req("POST", f"{API}/auth/login", body={"phone": "9000000001", "password": "password123"})
 at = admin["accessToken"]
 fed = subprocess.run(
-    ["docker", "exec", "sih26089-postgres", "psql", "-U", "postgres", "-d", "sih26089",
+    ["docker", "exec", PG, "psql", "-U", "postgres", "-d", "sih26089",
      "-t", "-c", 'select id from "Federation" limit 1;'],
     capture_output=True, text=True).stdout.strip()
 

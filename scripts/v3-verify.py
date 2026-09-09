@@ -48,9 +48,19 @@ def login(phone):
     return req("POST", "/auth/otp/verify", body={"phone": phone, "otp": "0000"})[1]["accessToken"]
 
 
+def _pg_container():
+    out = subprocess.run(
+        ["docker", "ps", "--filter", "ancestor=postgis/postgis:16-3.4", "--format", "{{.Names}}"],
+        capture_output=True, text=True).stdout.strip().splitlines()
+    return out[0] if out else "sih26089-postgres"
+
+
+PG = _pg_container()
+
+
 def sql(q):
     return subprocess.run(
-        ["docker", "exec", "sih26089-postgres", "psql", "-U", "postgres", "-d", "sih26089", "-t", "-c", q],
+        ["docker", "exec", PG, "psql", "-U", "postgres", "-d", "sih26089", "-t", "-c", q],
         capture_output=True, text=True).stdout.strip()
 
 

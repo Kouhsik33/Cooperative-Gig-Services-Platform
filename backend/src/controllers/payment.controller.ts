@@ -202,6 +202,38 @@ export async function simulateCallback(req: Request, res: Response) {
   res.json({ alreadyProcessed: result === "already_paid", payment });
 }
 
+// POST /api/payments/:bookingId/cod — customer opts to pay the
+// professional in cash after the job instead of online now. No money
+// moves here; the Payment row is marked "cod" so the lifecycle can
+// proceed, and it flips to "paid" when the job is completed (cash
+// handed over at that point — see verifyServiceOtp). Welfare still
+// accrues on completion exactly as it does for an online payment, since
+// the federation's cut is a percentage of the job regardless of how the
+// customer settled it.
+export async function payWithCod(req: Request, res: Response) {
+  const { bookingId } = req.params;
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { payment: true },
+  });
+  if (!booking) return res.status(404).json({ error: "Booking not found" });
+  if (booking.customerId !== req.user!.id) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  if (booking.payment?.status === "paid") {
+    return res.status(409).json({ error: "This booking has already been paid" });
+  }
+
+  const payment = await prisma.payment.upsert({
+    where: { bookingId: booking.id },
+    create: { bookingId: booking.id, razorpayId: "COD", status: "cod" },
+    update: { razorpayId: "COD", status: "cod" },
+  });
+
+  res.json({ method: "cod", payment });
+}
+
 // Itemized invoice (Requirement 5) — worker share, federation fee, and
 // welfare contribution as three separate line items, matching the same
 // breakdown shown on FairPricingBreakdownScreen. JSON per Part E
@@ -248,5 +280,6 @@ export async function getInvoice(req: Request, res: Response) {
       welfareContribution: booking.welfareContribution,
     },
     paymentStatus: booking.payment?.status ?? "unpaid",
+    paymentMethod: booking.payment?.razorpayId === "COD" ? "cod" : "online",
   });
 }

@@ -5,6 +5,14 @@ import { computeWageSplit } from "../services/wageSplit";
 import { emitBookingEvent, emitOtpReady } from "../socket/events";
 import { requestOtp, verifyOtp } from "../services/otp.service";
 import {
+  NAV_DURATION_SECONDS,
+  getTrackingState,
+  markArrived,
+  startTrackingSimulation,
+  stopTrackingSimulation,
+} from "../services/trackingSimulator.service";
+import { haversineKm } from "../lib/geo";
+import {
   broadcastBooking,
   notifyLosingWorkers,
 } from "../services/dispatch.service";
@@ -32,6 +40,31 @@ import { formatMoney } from "../lib/money";
 // assignment (ON_THE_WAY → ARRIVED → OTP-gated IN_PROGRESS →
 // COMPLETION_PENDING → OTP-gated COMPLETED) is unchanged from the
 // previous phase.
+
+// The one canonical shape every booking endpoint hands back to the app.
+// Both lifecycle-hub screens (BookingTrackingScreen, JobDetailScreen)
+// take a mutation response and `setBooking(...)` it directly, then render
+// booking.service.name / booking.customer.name / booking.worker.user.name.
+// A mutation that returned a bare `prisma.booking.update()` (no include)
+// therefore blanked those relations and crashed the screen with
+// "Cannot read property 'name' of undefined". Route every booking
+// response through this include so the shape never depends on which
+// endpoint produced it.
+const bookingClientInclude = {
+  service: true,
+  servicePackage: true,
+  worker: { include: { user: { select: { id: true, name: true, phone: true } } } },
+  customer: { select: { id: true, name: true, phone: true } },
+  payment: true,
+  rating: true,
+} as const;
+
+async function bookingForClient(id: string) {
+  return prisma.booking.findUniqueOrThrow({
+    where: { id },
+    include: bookingClientInclude,
+  });
+}
 
 async function createBookingInternal(
   req: Request,
@@ -274,14 +307,14 @@ export async function redispatchBooking(req: Request, res: Response) {
     longitude: booking.longitude,
   });
 
-  const updated = await prisma.booking.update({
+  await prisma.booking.update({
     where: { id: booking.id },
     data: { eligibleWorkerCount: eligible.length, broadcastAt: new Date() },
   });
 
   await announceBooking(booking, booking.service.name, eligible);
 
-  res.json({ ...updated, eligibleWorkerCount: eligible.length });
+  res.json(await bookingForClient(booking.id));
 }
 
 // The core dispatch rule (§14-16, §46): first eligible worker to accept
@@ -362,14 +395,7 @@ export async function acceptBooking(req: Request, res: Response) {
     update: { response: "ACCEPTED" },
   });
 
-  const updated = await prisma.booking.findUniqueOrThrow({
-    where: { id: booking.id },
-    include: {
-      service: true,
-      worker: { include: { user: { select: { id: true, name: true, phone: true } } } },
-      customer: { select: { id: true, name: true, phone: true } },
-    },
-  });
+  const updated = await bookingForClient(booking.id);
 
   const federationId = worker.society.federationId;
 
@@ -484,7 +510,7 @@ export async function rescheduleBooking(req: Request, res: Response) {
     );
   }
 
-  res.json(updated);
+  res.json(await bookingForClient(updated.id));
 }
 
 // A worker passes on a broadcast request (V3).
@@ -569,6 +595,14 @@ export async function updateBookingStatus(req: Request, res: Response) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
+  // "I've arrived" early (before the ~45s simulated drive finishes) goes
+  // through the exact same path the timer uses on completion — status,
+  // WORKER_ARRIVED notification, statusUpdate emit, SERVICE_START OTP.
+  if (status === "ARRIVED") {
+    await markArrived(booking.id);
+    return res.json(await bookingForClient(booking.id));
+  }
+
   const updated = await prisma.booking.update({
     where: { id: booking.id },
     data: {
@@ -607,21 +641,45 @@ export async function updateBookingStatus(req: Request, res: Response) {
     );
   }
 
-  // Reaching ARRIVED generates the service-start OTP the customer must
-  // hand the worker (§19/§28). Demo accounts always get 0000 — see
-  // otp.service.ts's isDemoPhone — which requires the customer's own
-  // phone, not just the bookingId.
-  if (status === "ARRIVED") {
-    const customer = await prisma.user.findUnique({ where: { id: booking.customerId } });
-    await requestOtp({
-      purpose: OtpPurpose.SERVICE_START,
-      bookingId: booking.id,
-      phone: customer?.phone,
+  // Worker taps "Start navigating": snapshot their position now and
+  // anchor the simulated drive. navFrom* is the worker's own coords if
+  // on file, otherwise a point ~2km from the customer so the demo still
+  // shows visible movement. Movement is SIMULATED (time-based), never
+  // real GPS — see trackingSimulator.service.ts.
+  if (status === "ON_THE_WAY" && booking.workerId) {
+    const worker = await prisma.worker.findUnique({
+      where: { id: booking.workerId },
+      select: { latitude: true, longitude: true },
     });
-    emitOtpReady(booking.customerId, booking.id, "SERVICE_START");
+    let fromLat = worker?.latitude ?? null;
+    let fromLng = worker?.longitude ?? null;
+    // No worker coords, or coincidentally identical to the destination —
+    // offset ~2km north-east so travel is actually visible.
+    if (
+      fromLat == null ||
+      fromLng == null ||
+      haversineKm(fromLat, fromLng, booking.latitude, booking.longitude) < 0.2
+    ) {
+      fromLat = booking.latitude + 0.018;
+      fromLng = booking.longitude + 0.018;
+    }
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        navStartedAt: new Date(),
+        navFromLat: fromLat,
+        navFromLng: fromLng,
+        navDurationSeconds: NAV_DURATION_SECONDS,
+      },
+    });
+    startTrackingSimulation(booking.id);
   }
 
-  res.json(updated);
+  if (status === "CANCELLED") {
+    stopTrackingSimulation(booking.id);
+  }
+
+  res.json(await bookingForClient(updated.id));
 }
 
 // Who to tell about a plain status transition, and what to say (§19).
@@ -686,6 +744,34 @@ async function notifyOnStatusChange(
       body: `${booking.service.name} was cancelled after assignment.${suffix}`,
     });
   }
+}
+
+// Live tracking position for the en-route view. Both the customer and
+// the assigned worker may read it (they see the same drive from two
+// screens); the federation admin too. Returns null-ish when nothing is
+// moving. Reconnecting mid-trip, a client calls this once to catch up,
+// then follows the booking:location socket events.
+export async function getBookingTracking(req: Request, res: Response) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: req.params.id },
+    include: { worker: true },
+  });
+  if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+  const isCustomer = req.user!.id === booking.customerId;
+  const isAssignedWorker = !!booking.worker && req.user!.id === booking.worker.userId;
+  const isAdmin = req.user!.role === "FEDERATION_ADMIN";
+  if (!isCustomer && !isAssignedWorker && !isAdmin) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const state = await getTrackingState(booking.id);
+  res.json({
+    bookingId: booking.id,
+    status: booking.status,
+    destination: { latitude: booking.latitude, longitude: booking.longitude },
+    tracking: state,
+  });
 }
 
 // Requirement 19/25 — the customer's own view of the currently active
@@ -782,14 +868,19 @@ export async function verifyServiceOtp(req: Request, res: Response) {
       title: "Service started",
       body: `Work has begun on your ${booking.service.name}.`,
     });
-    return res.json(updated);
+    return res.json(await bookingForClient(updated.id));
   }
 
   // SERVICE_COMPLETION — same "must be paid" welfare-crediting gate as
   // before: completing an unpaid job still completes, it just doesn't
   // credit welfare for money never collected. Either way, the worker
   // frees up (BUSY -> AVAILABLE) since the job is done.
-  const shouldCreditWelfare = booking.payment?.status === "paid";
+  //
+  // "cod" counts as paid here: the customer chose cash-on-completion, and
+  // this transition IS that completion — the money is collected in person
+  // now, so welfare accrues exactly as it would for an online payment.
+  const isCod = booking.payment?.status === "cod";
+  const shouldCreditWelfare = booking.payment?.status === "paid" || isCod;
   if (!shouldCreditWelfare) {
     const [updated] = await prisma.$transaction([
       prisma.booking.update({
@@ -806,7 +897,7 @@ export async function verifyServiceOtp(req: Request, res: Response) {
       booking.customerId
     );
     await notifyOnCompletion(booking, false);
-    return res.json(updated);
+    return res.json(await bookingForClient(updated.id));
   }
 
   const welfareFund = await prisma.welfareFund.findUnique({ where: { federationId } });
@@ -835,6 +926,16 @@ export async function verifyServiceOtp(req: Request, res: Response) {
       data: { balance: { increment: booking.welfareContribution } },
     }),
     prisma.worker.update({ where: { id: booking.workerId! }, data: { availability: "AVAILABLE" } }),
+    // Cash collected in person at completion — the COD payment is now
+    // settled, so downstream UI that checks status === "paid" is correct.
+    ...(isCod
+      ? [
+          prisma.payment.update({
+            where: { bookingId: booking.id },
+            data: { status: "paid", paidAt: new Date() },
+          }),
+        ]
+      : []),
   ]);
 
   emitBookingEvent(
@@ -847,7 +948,7 @@ export async function verifyServiceOtp(req: Request, res: Response) {
 
   await notifyOnCompletion(booking, true);
 
-  res.json(updated);
+  res.json(await bookingForClient(updated.id));
 }
 
 // Both sides of a finished job (§19). The worker's earnings notification
@@ -944,7 +1045,7 @@ export async function requestCompletion(req: Request, res: Response) {
     booking.customerId
   );
 
-  res.json(updated);
+  res.json(await bookingForClient(updated.id));
 }
 
 // Dispatch model (§13/§24) — incoming broadcast requests for this
@@ -1047,9 +1148,30 @@ export async function getBooking(req: Request, res: Response) {
   });
   if (!booking) return res.status(404).json({ error: "Booking not found" });
 
-  const isOwner =
-    req.user!.id === booking.customerId || (!!booking.worker && req.user!.id === booking.worker.userId);
-  if (req.user!.role !== "FEDERATION_ADMIN" && !isOwner) {
+  const isCustomer = req.user!.id === booking.customerId;
+  const isAssignedWorker = !!booking.worker && req.user!.id === booking.worker.userId;
+  const isAdmin = req.user!.role === "FEDERATION_ADMIN";
+
+  // A worker who has *responded* to this booking (accepted then lost the
+  // race, or accepted and later had it cancelled) can still open it — so
+  // a "request taken elsewhere" / "booking cancelled" notification
+  // resolves to a real screen instead of a 403 -> "Try again".
+  let hasResponded = false;
+  if (!isCustomer && !isAssignedWorker && !isAdmin && req.user!.role === "WORKER") {
+    const worker = await prisma.worker.findUnique({
+      where: { userId: req.user!.id },
+      select: { id: true },
+    });
+    if (worker) {
+      const response = await prisma.bookingWorkerResponse.findUnique({
+        where: { bookingId_workerId: { bookingId: booking.id, workerId: worker.id } },
+        select: { id: true },
+      });
+      hasResponded = !!response;
+    }
+  }
+
+  if (!isCustomer && !isAssignedWorker && !isAdmin && !hasResponded) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
