@@ -134,14 +134,21 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
       ListHeaderComponent={
         <View>
           <View style={styles.brandRow}>
-            <Text style={styles.brandName}>SAHAKARYA</Text>
+            <Text style={styles.brandName}>Sahakãrya</Text>
             <View style={styles.brandPill}>
               <Text style={styles.brandPillText}>COOPERATIVE</Text>
             </View>
           </View>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.greeting}>{t("home.greeting", { name: user?.name?.split(" ")[0] ?? "" })}</Text>
+              <Text style={styles.greeting}>
+                <Text style={styles.greetingPrefix}>
+                  {i18n.language === "hi" ? "नमस्ते " : i18n.language === "mr" ? "नमस्कार " : i18n.language === "te" ? "నమస్తే " : "Hi "}
+                </Text>
+                <Text style={styles.userNameHighlight}>
+                  {user?.name?.split(" ")[0] ?? ""}
+                </Text>
+              </Text>
               <Text style={styles.subGreeting}>{t("home.prompt")}</Text>
             </View>
             <NotificationBell onPress={() => navigation.navigate("Notifications")} />
@@ -192,22 +199,46 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
             </TouchableOpacity>
           )}
 
-          <TextInput
-            style={styles.search}
-            placeholder={t("home.searchPlaceholder")}
-            placeholderTextColor={colors.textMuted}
-            value={query}
-            onChangeText={setQuery}
-          />
+          {/* Search Bar with generous breathing room and retro search icon */}
+          <View style={styles.searchContainer}>
+            <Ionicons
+              name={icons.search}
+              size={18}
+              color={colors.textSecondary}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t("home.searchPlaceholder")}
+              placeholderTextColor={colors.textMuted}
+              value={query}
+              onChangeText={setQuery}
+              returnKeyType="search"
+            />
+            {query.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setQuery("")}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
 
           <TouchableOpacity
             style={styles.emergencyCard}
             onPress={() => switchTab("emergency")}
             activeOpacity={0.85}
           >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.emergencyTitle}>{t("home.emergencyTitle")}</Text>
-<Text style={styles.emergencyBody}>{t("home.emergencyBody")}</Text>
+            <View style={styles.emergencyInner}>
+              <View style={styles.emergencyIconWrap}>
+                <Ionicons name="flash" size={18} color={colors.error} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.emergencyTitle}>{t("home.emergencyTitle")}</Text>
+                <Text style={styles.emergencyBody}>{t("home.emergencyBody")}</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={16} color={colors.error} />
             </View>
           </TouchableOpacity>
 
@@ -307,20 +338,22 @@ function ImpactStat({ value, label }: { value: string; label: string }) {
 
 const styles = StyleSheet.create({
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginBottom: spacing.xs },
-  brandName: { ...type.caption, fontWeight: "900", color: colors.primary, letterSpacing: 1.2 },
+  brandName: { fontFamily: "Kaltera", fontSize: 15, lineHeight: 19, fontWeight: "900", color: colors.primary, letterSpacing: 0.8 },
   brandPill: {
-    backgroundColor: colors.goldLight,
+    backgroundColor: colors.skyLight,
     borderWidth: borders.thin,
-    borderColor: colors.gold,
+    borderColor: borders.color,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: 1,
   },
-  brandPillText: { ...type.caption, fontSize: 9, fontWeight: "800", color: colors.goldDark },
+  brandPillText: { ...type.caption, fontSize: 9, fontWeight: "800", color: colors.textPrimary },
   ctaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 12 },
   list: { padding: spacing.xl, paddingBottom: spacing.xxxl + 40, backgroundColor: colors.background },
   headerRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: spacing.md },
-  greeting: { ...type.h1, fontWeight: "900", color: colors.textPrimary },
+  greeting: { ...type.h1, color: colors.textPrimary },
+  greetingPrefix: { fontFamily: "JosefinSans", fontWeight: "700" },
+  userNameHighlight: { fontFamily: "Kaltera", fontWeight: "900" },
   subGreeting: { ...type.body, fontWeight: "600", color: colors.textSecondary, marginTop: 2 },
   locationRow: {
     flexDirection: "row",
@@ -373,31 +406,57 @@ const styles = StyleSheet.create({
     color: colors.primary,
     textDecorationLine: "underline",
   },
-  search: {
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.surface,
     borderWidth: borders.default,
     borderColor: borders.color,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.md,
+    height: 52,
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
+    ...shadow.sm,
+  },
+  searchIcon: {
+    marginRight: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
     color: colors.textPrimary,
     ...type.bodyMedium,
     fontWeight: "600",
-    ...shadow.sm,
+    height: "100%",
+    paddingVertical: 0,
   },
   emergencyCard: {
     backgroundColor: colors.primaryLight,
     borderRadius: radius.lg,
     padding: spacing.lg,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
     borderWidth: borders.default,
     borderColor: borders.color,
     ...shadow.sm,
   },
+  emergencyInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  emergencyIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   emergencyTitle: { ...type.h3, fontWeight: "900", color: colors.error },
-  emergencyBody: { ...type.small, fontWeight: "600", color: colors.textPrimary, marginTop: spacing.xs },
-  categoryRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: spacing.md },
+  emergencyBody: { ...type.small, fontWeight: "600", color: colors.textPrimary, marginTop: 2 },
+  categoryRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: spacing.lg },
   sectionTitle: {
     ...type.h3,
     fontWeight: "900",
@@ -421,7 +480,7 @@ const styles = StyleSheet.create({
   whyBody: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
   impactCard: {
     marginTop: spacing.md,
-    backgroundColor: colors.goldLight,
+    backgroundColor: colors.primaryLight,
     borderRadius: radius.xl,
     borderWidth: borders.default,
     borderColor: borders.color,

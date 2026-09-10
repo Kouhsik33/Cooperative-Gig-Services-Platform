@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import type { ServicePackage } from "../../api/types";
-import { colors, layout, radius, spacing, type } from "../../theme/tokens";
+import { borders, colors, layout, radius, shadow, spacing, type } from "../../theme/tokens";
 
 // One selectable service tier.
 //
@@ -82,54 +82,60 @@ export default function ServicePackageCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: borders.default,
+    borderColor: borders.color,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.lg,
     marginBottom: spacing.md,
     minHeight: layout.minTouchTarget,
+    ...shadow.sm,
   },
-  // Selection is carried by border weight and tint, not by size, so the
-  // surrounding layout never shifts when the choice changes.
-  cardSelected: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primaryLight },
+  cardSelected: {
+    borderColor: colors.primary,
+    borderWidth: borders.thick,
+    backgroundColor: colors.primaryLight,
+  },
   cardPressed: { backgroundColor: colors.background },
   head: { flexDirection: "row", alignItems: "flex-start" },
   radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.borderStrong,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: borders.default,
+    borderColor: borders.color,
     marginRight: spacing.md,
     marginTop: 2,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: colors.surface,
   },
   radioOn: { borderColor: colors.primary },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
+  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.primary },
   headText: { flex: 1, marginRight: spacing.md },
   nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm },
-  name: { ...type.bodyMedium, color: colors.textPrimary },
-  nameSelected: { color: colors.primaryDark },
+  name: { ...type.bodyMedium, fontWeight: "800", color: colors.textPrimary },
+  nameSelected: { color: colors.primary },
   recommended: {
-    backgroundColor: colors.secondaryLight,
-    borderRadius: radius.sm,
+    backgroundColor: colors.skyLight,
+    borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
   },
-  recommendedText: { ...type.caption, color: colors.secondaryDark, fontWeight: "700" },
+  recommendedText: { ...type.caption, color: colors.textPrimary, fontWeight: "800", fontSize: 10 },
   description: { ...type.small, color: colors.textSecondary, marginTop: 2 },
   priceCol: { alignItems: "flex-end" },
-  price: { ...type.h3, color: colors.textPrimary },
-  priceSelected: { color: colors.primaryDark },
-  duration: { ...type.caption, color: colors.textMuted, marginTop: 2 },
+  price: { ...type.h3, fontWeight: "900", color: colors.textPrimary },
+  priceSelected: { color: colors.primary },
+  duration: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
   inclusions: {
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: borders.color,
   },
   inclusionRow: { flexDirection: "row", alignItems: "center", marginBottom: spacing.xs, gap: spacing.sm },
-  inclusionText: { ...type.small, color: colors.textSecondary, flex: 1 },
+  inclusionText: { ...type.small, fontWeight: "600", color: colors.textPrimary, flex: 1 },
 });

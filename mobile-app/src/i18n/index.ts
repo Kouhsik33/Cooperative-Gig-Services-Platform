@@ -14,6 +14,7 @@ export const SUPPORTED_LANGUAGES = ["en", "hi", "mr", "te"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
 i18n.use(initReactI18next).init({
+  compatibilityJSON: "v3",
   resources: {
     en: { translation: en },
     hi: { translation: hi },

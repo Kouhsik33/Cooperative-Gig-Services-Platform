@@ -6,12 +6,18 @@ import { useFonts } from "expo-font";
 import { ActivityIndicator, View } from "react-native";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { AuthProvider } from "./src/store/AuthContext";
+import { PALETTE } from "./src/theme/tokens";
 import "./src/i18n";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
     Kaltera: require("./src/theme/Kaltera-Regular.ttf"),
     "Kaltera-Regular": require("./src/theme/Kaltera-Regular.ttf"),
+    JosefinSans: require("./src/theme/JosefinSans-Regular.ttf"),
+    "JosefinSans-Regular": require("./src/theme/JosefinSans-Regular.ttf"),
+    "JosefinSans-Medium": require("./src/theme/JosefinSans-Medium.ttf"),
+    "JosefinSans-SemiBold": require("./src/theme/JosefinSans-SemiBold.ttf"),
+    "JosefinSans-Bold": require("./src/theme/JosefinSans-Bold.ttf"),
   });
 
   if (!fontsLoaded) {
@@ -19,12 +25,12 @@ export default function App() {
       <View
         style={{
           flex: 1,
-          backgroundColor: "#FFF6E8",
+          backgroundColor: PALETTE.canvas,
           justifyContent: "center",
           alignItems: "center",
         }}
       >
-        <ActivityIndicator size="large" color="#C1121F" />
+        <ActivityIndicator size="large" color={PALETTE.primary} />
       </View>
     );
   }

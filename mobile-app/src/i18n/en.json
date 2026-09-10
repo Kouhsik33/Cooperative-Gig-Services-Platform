@@ -341,7 +341,7 @@
     "searchTitle": "What do you need?"
   },
   "workerHome": {
-    "greeting": "Good day, {{name}}",
+    "greeting": "Hi {{name}}",
     "onJob": "On a job",
     "online": "Online",
     "offline": "Offline",

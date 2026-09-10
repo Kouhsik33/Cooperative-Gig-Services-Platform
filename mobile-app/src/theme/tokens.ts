@@ -1,102 +1,136 @@
-// Centralized design tokens (Sahakarya 60|30|10 Indian Color Palette System)
-// 60% Vanilla Cream (#FFF6E8) — light, warm, soothing canvas and clean surfaces
-// 30% Cherry Velvet (#C1121F) — rich royal cherry brand structure, buttons, headers
-// 10% Sky Powder (#A9C6EA) & Golden Typography (#C59B27 / #D4AF37) — luxury accents & highlights
+import { Platform } from "react-native";
+
+// ============================================================================
+// 🎨 ROOT THEME PALETTE CONFIGURATION
+// "CASSETTE TAPE" Retro Nostalgic Theme (Combo #6)
+//
+// 💡 TO CHANGE COLOR PALETTES FOR THE ENTIRE APP:
+// Simply modify the hex values in the PALETTE object below!
+// Everything else in mobile-app automatically inherits from this.
+// ============================================================================
+
+export const PALETTE = {
+  // 60% Dominant Canvas (Dusty Pale Ice White / Light Canvas)
+  canvas: "#EDF2F4",
+
+  // 30% Deep Slate Navy Contrast (Ink, Text, Borders, Solid Shadows)
+  ink: "#2B2D42",
+
+  // 10% Vibrant Retro Accent (Electric Crimson Red for Buttons, Badges, CTAs)
+  primary: "#EF233C",
+  primaryDark: "#D90429",
+  primaryLight: "#FDEDF0",
+
+  // Secondary Steel Blue (Muted Slate / Category Chips / Accent Pills)
+  secondary: "#8D99AE",
+  secondaryDark: "#606D80",
+  secondaryLight: "#E6EAEE",
+
+  // Surfaces
+  surface: "#FFFFFF",
+  surfaceElevated: "#F8FAFB",
+
+  // Neobrutalist Line & Shadow System
+  border: "#2B2D42",
+  shadow: "#2B2D42",
+} as const;
 
 export const colors = {
-  // 30% Structural Brand: Cherry Velvet
-  primary: "#C1121F",
-  primaryDark: "#980F19",
-  primaryLight: "#FDE8EA",
+  // 10% Hero Accent & Primary CTAs: Vibrant Crimson Red (#EF233C)
+  primary: PALETTE.primary,
+  primaryDark: PALETTE.primaryDark,
+  primaryLight: PALETTE.primaryLight,
 
-  // 10% Accent: Sky Powder
-  secondary: "#A9C6EA",
-  secondaryDark: "#7FA7D9",
-  secondaryLight: "#EBF2FA",
-  sky: "#A9C6EA",
-  skyLight: "#EBF2FA",
-  skyDark: "#7FA7D9",
+  // Secondary Steel Blue (#8D99AE)
+  secondary: PALETTE.secondary,
+  secondaryDark: PALETTE.secondaryDark,
+  secondaryLight: PALETTE.secondaryLight,
+  sky: PALETTE.secondary,
+  skyLight: PALETTE.secondaryLight,
+  skyDark: PALETTE.secondaryDark,
 
-  // 60% Dominant: Vanilla Cream
-  background: "#FFF6E8",
-  vanilla: "#FFF6E8",
-  vanillaLight: "#FFFBF5",
-  surface: "#FFFFFF",
-  surfaceElevated: "#FFFBF5",
+  // 60% Dominant Base Canvas: (#EDF2F4) & Crisp Surfaces (#FFFFFF)
+  background: PALETTE.canvas,
+  canvas: PALETTE.canvas,
+  surface: PALETTE.surface,
+  surfaceElevated: PALETTE.surfaceElevated,
+  vanilla: PALETTE.canvas,
+  vanillaLight: PALETTE.surfaceElevated,
 
-  // 10% Accent: Golden Typography Style & Royal Trim
-  gold: "#C59B27",
-  goldLight: "#FFF4D2",
-  goldDark: "#9A7513",
+  // Retro Accent Trim & Auxiliary Tones
+  gold: "#E09F3E",
+  goldLight: "#FDF5E8",
+  goldDark: "#9E6410",
   goldMetallic: "#D4AF37",
 
-  // Harmonious auxiliary tones
-  lime: "#D5E5B8",
-  limeLight: "#F2F8E9",
-  limeDark: "#A3BD79",
+  lime: "#90BE6D",
+  limeLight: "#F0F7EB",
+  limeDark: "#58813B",
 
-  yellow: "#F9DCA4",
-  yellowLight: "#FFF4D2",
+  yellow: "#F9C74F",
+  yellowLight: "#FEF8E9",
   yellowDark: "#C59B27",
 
-  cyan: "#A9C6EA",
-  cyanLight: "#EBF2FA",
-  cyanDark: "#7FA7D9",
+  cyan: PALETTE.secondary,
+  cyanLight: PALETTE.secondaryLight,
+  cyanDark: PALETTE.secondaryDark,
 
-  purple: "#DAC8E8",
-  purpleLight: "#F4EFF9",
-  purpleDark: "#A48BBD",
+  purple: "#7209B7",
+  purpleLight: "#F3E8F9",
+  purpleDark: "#480CA8",
 
-  peach: "#FAD8C3",
-  peachLight: "#FFF0E6",
-  peachDark: "#CFA085",
+  peach: "#F4A261",
+  peachLight: "#FDF4EC",
+  peachDark: "#C46820",
 
-  // Ink & deep borders
-  textPrimary: "#1F1516",
-  textSecondary: "#5C4A4D",
-  textMuted: "#8C787B",
+  // 30% Structural Ink & Text: Deep Slate Navy (#2B2D42)
+  textPrimary: PALETTE.ink,
+  textSecondary: "#4A5068",
+  textMuted: PALETTE.secondary,
   textInverse: "#FFFFFF",
 
-  success: "#15803D",
-  successLight: "#F0FDF4",
-  warning: "#B45309",
-  warningLight: "#FFFBEB",
-  error: "#C1121F",
-  errorLight: "#FDE8EA",
-  info: "#2563EB",
-  infoLight: "#EFF6FF",
+  // Semantic Status Colors
+  success: "#2B9348",
+  successLight: "#EBF7EE",
+  warning: "#E76F51",
+  warningLight: "#FDF2EF",
+  error: PALETTE.primary,
+  errorLight: PALETTE.primaryLight,
+  info: PALETTE.secondaryDark,
+  infoLight: PALETTE.secondaryLight,
 
-  border: "#1F1516",
-  borderStrong: "#1F1516",
-  ink: "#1F1516",
+  // Borders & Ink
+  border: PALETTE.border,
+  borderStrong: PALETTE.border,
+  ink: PALETTE.ink,
 
   overlayOnDark: "rgba(255, 255, 255, 0.2)",
-  skeleton: "#F2E8D8",
-  skeletonHighlight: "#FAF2E6",
+  skeleton: "#E2E8F0",
+  skeletonHighlight: PALETTE.canvas,
 
-  // Semantic aliases
+  // Semantic Aliases
   primaryForeground: "#FFFFFF",
-  accent: "#C59B27",
-  accentForeground: "#1F1516",
+  accent: PALETTE.primary,
+  accentForeground: "#FFFFFF",
   onPrimarySurface: "#FFFFFF",
-  shadowTint: "#1F1516",
+  shadowTint: PALETTE.shadow,
 } as const;
 
 export const borders = {
   thin: 1.5,
   default: 2.2,
   thick: 3,
-  color: "#1F1516",
+  color: PALETTE.border,
 } as const;
 
 export const avatarPalette = [
-  colors.primary,
-  colors.sky,
-  colors.gold,
-  colors.peach,
-  colors.purple,
-  colors.lime,
-  colors.secondary,
+  PALETTE.primary,
+  PALETTE.secondary,
+  "#E09F3E",
+  "#F4A261",
+  "#7209B7",
+  "#90BE6D",
+  PALETTE.ink,
 ] as const;
 
 export const spacing = {
@@ -124,42 +158,52 @@ export const layout = {
 } as const;
 
 export const type = {
-  display: { fontFamily: "Kaltera", fontSize: 34, lineHeight: 40 },
-  h1: { fontFamily: "Kaltera", fontSize: 26, lineHeight: 32 },
-  h2: { fontFamily: "Kaltera", fontSize: 20, lineHeight: 26 },
-  h3: { fontFamily: "Kaltera", fontSize: 17, lineHeight: 22 },
-  body: { fontFamily: "Kaltera", fontSize: 15, lineHeight: 21 },
-  bodyMedium: { fontFamily: "Kaltera", fontSize: 15, lineHeight: 21 },
-  small: { fontFamily: "Kaltera", fontSize: 13, lineHeight: 18 },
-  smallMedium: { fontFamily: "Kaltera", fontSize: 13, lineHeight: 18 },
-  caption: { fontFamily: "Kaltera", fontSize: 11, lineHeight: 15 },
-  label: { fontFamily: "Kaltera", fontSize: 11, lineHeight: 14, letterSpacing: 0.6 },
+  display: { fontFamily: "JosefinSans", fontSize: 34, lineHeight: 40 },
+  h1: { fontFamily: "JosefinSans", fontSize: 26, lineHeight: 32 },
+  h2: { fontFamily: "JosefinSans", fontSize: 20, lineHeight: 26 },
+  h3: { fontFamily: "JosefinSans", fontSize: 17, lineHeight: 22 },
+  body: { fontFamily: "JosefinSans", fontSize: 15, lineHeight: 21 },
+  bodyMedium: { fontFamily: "JosefinSans", fontSize: 15, lineHeight: 21 },
+  small: { fontFamily: "JosefinSans", fontSize: 13, lineHeight: 18 },
+  smallMedium: { fontFamily: "JosefinSans", fontSize: 13, lineHeight: 18 },
+  caption: { fontFamily: "JosefinSans", fontSize: 11, lineHeight: 15 },
+  label: { fontFamily: "JosefinSans", fontSize: 11, lineHeight: 14, letterSpacing: 0.6 },
+  kaltera: { fontFamily: "Kaltera" },
 } as const;
 
-// Hard Neobrutalist Offset Shadows with ZERO blur
+// Hard Neobrutalist Offset Shadows with ZERO blur (#2B2D42 Deep Slate Ink)
 export const shadow = {
-  sm: {
-    shadowColor: "#1F1516",
-    shadowOffset: { width: 2.5, height: 2.5 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 3,
-  },
-  md: {
-    shadowColor: "#1F1516",
-    shadowOffset: { width: 3.5, height: 3.5 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 5,
-  },
-  lg: {
-    shadowColor: "#1F1516",
-    shadowOffset: { width: 5, height: 5 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 8,
-  },
+  sm: Platform.select({
+    web: { boxShadow: `2.5px 2.5px 0px ${PALETTE.shadow}` } as any,
+    default: {
+      shadowColor: PALETTE.shadow,
+      shadowOffset: { width: 2.5, height: 2.5 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 3,
+    },
+  }),
+  md: Platform.select({
+    web: { boxShadow: `3.5px 3.5px 0px ${PALETTE.shadow}` } as any,
+    default: {
+      shadowColor: PALETTE.shadow,
+      shadowOffset: { width: 3.5, height: 3.5 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 5,
+    },
+  }),
+  lg: Platform.select({
+    web: { boxShadow: `5px 5px 0px ${PALETTE.shadow}` } as any,
+    default: {
+      shadowColor: PALETTE.shadow,
+      shadowOffset: { width: 5, height: 5 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 8,
+    },
+  }),
 } as const;
 
-export const theme = { colors, borders, spacing, radius, type, shadow, avatarPalette, layout };
+export const theme = { PALETTE, colors, borders, spacing, radius, type, shadow, avatarPalette, layout };
 export default theme;

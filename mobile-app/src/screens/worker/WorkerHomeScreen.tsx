@@ -133,7 +133,14 @@ export default function WorkerHomeScreen({ navigation }: Props) {
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.greeting}>{t("workerHome.greeting", { name: user?.name?.split(" ")[0] ?? "" })}</Text>
+          <Text style={styles.greeting}>
+            <Text style={styles.greetingPrefix}>
+              {i18n.language === "hi" ? "नमस्ते " : i18n.language === "mr" ? "नमस्कार " : i18n.language === "te" ? "నమస్తే " : "Hi "}
+            </Text>
+            <Text style={styles.userNameHighlight}>
+              {user?.name?.split(" ")[0] ?? ""}
+            </Text>
+          </Text>
           <VerifiedBadge label={t("profile.verifiedProfessional")} />
         </View>
         <NotificationBell onPress={() => navigation.navigate("Notifications")} />
@@ -240,7 +247,9 @@ const styles = StyleSheet.create({
   ctaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 12 },
   container: { padding: spacing.xl, paddingBottom: spacing.xxxl + 40, backgroundColor: colors.background },
   headerRow: { flexDirection: "row", alignItems: "flex-start" },
-  greeting: { ...type.h1, fontWeight: "900", color: colors.textPrimary, marginBottom: spacing.sm },
+  greeting: { ...type.h1, color: colors.textPrimary, marginBottom: spacing.sm },
+  greetingPrefix: { fontFamily: "JosefinSans", fontWeight: "700" },
+  userNameHighlight: { fontFamily: "Kaltera", fontWeight: "900" },
   switcher: { marginVertical: spacing.md, alignItems: "flex-start" },
   availabilityCard: {
     marginBottom: spacing.lg,
@@ -252,17 +261,17 @@ const styles = StyleSheet.create({
   },
   activeJobCard: {
     marginBottom: spacing.lg,
-    backgroundColor: colors.lime,
+    backgroundColor: colors.primaryLight,
     borderColor: borders.color,
     borderWidth: borders.default,
     borderRadius: radius.xl,
     ...shadow.md,
   },
   activeJobHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  activeJobLabel: { ...type.caption, fontWeight: "800", color: colors.textPrimary, textTransform: "uppercase" },
+  activeJobLabel: { ...type.caption, fontWeight: "800", color: colors.primaryDark, textTransform: "uppercase" },
   activeJobService: { ...type.h2, fontWeight: "900", color: colors.textPrimary, marginTop: spacing.xs },
   activeJobMeta: { ...type.small, fontWeight: "600", color: colors.textPrimary, marginTop: 2 },
-  activeJobCta: { ...type.smallMedium, fontWeight: "800", color: colors.textPrimary, textDecorationLine: "underline", marginTop: spacing.md },
+  activeJobCta: { ...type.smallMedium, fontWeight: "800", color: colors.primaryDark, textDecorationLine: "underline", marginTop: spacing.md },
   availabilityRow: { flexDirection: "row", alignItems: "center" },
   availabilityLabel: { ...type.bodyMedium, fontWeight: "800", color: colors.textPrimary },
   availabilitySub: { ...type.caption, fontWeight: "600", color: colors.textSecondary, marginTop: 2 },
@@ -279,7 +288,7 @@ const styles = StyleSheet.create({
     ...type.caption,
     fontWeight: "800",
     color: colors.textPrimary,
-    backgroundColor: colors.yellow,
+    backgroundColor: colors.skyLight,
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: 3,
     borderRadius: radius.pill,

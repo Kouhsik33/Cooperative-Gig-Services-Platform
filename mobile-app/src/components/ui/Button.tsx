@@ -90,8 +90,8 @@ const styles = StyleSheet.create({
 
 const VARIANT_STYLES: Record<NonNullable<Props["variant"]>, ViewStyle> = {
   primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.yellow },
-  lime: { backgroundColor: colors.lime },
+  secondary: { backgroundColor: colors.skyLight },
+  lime: { backgroundColor: colors.primaryLight },
   outline: { backgroundColor: colors.surface },
   danger: { backgroundColor: colors.error },
 };

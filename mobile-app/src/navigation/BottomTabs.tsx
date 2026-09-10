@@ -1,6 +1,7 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { borders, colors, radius, shadow, type } from "../theme/tokens";
 
@@ -13,16 +14,31 @@ export interface TabDef {
 
 const Tab = createBottomTabNavigator();
 
+const ROOT_ROUTES = new Set([
+  "ServiceCatalog",
+  "BookingsList",
+  "EmergencyBooking",
+  "CustomerProfile",
+  "WorkerHome",
+  "JobFeed",
+  "Earnings",
+  "MyWelfare",
+  "WorkerProfile",
+]);
+
 export default function BottomTabs({ tabs }: { tabs: TabDef[] }) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => {
         const def = tabs.find((t) => t.key === route.name);
+        const childRoute = getFocusedRouteNameFromRoute(route);
+        const isRoot = !childRoute || ROOT_ROUTES.has(childRoute);
+
         return {
           headerShown: false,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
-          tabBarStyle: styles.tabBar,
+          tabBarStyle: isRoot ? styles.tabBar : { display: "none" as const },
           tabBarLabelStyle: styles.label,
           tabBarIcon: ({ focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconActiveWrap]}>

@@ -73,7 +73,7 @@ export default function ServiceCard({
           {durationLabel ? <Text style={styles.duration}>({durationLabel})</Text> : null}
         </View>
         <View style={styles.arrowButton}>
-          <Ionicons name="arrow-forward" size={16} color={colors.textPrimary} />
+          <Ionicons name="arrow-forward" size={16} color={colors.primaryForeground} />
         </View>
       </View>
 
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: borders.default,
     borderColor: borders.color,
-    backgroundColor: colors.yellowLight,
+    backgroundColor: colors.skyLight,
     alignItems: "center",
     justifyContent: "center",
     marginRight: spacing.md,
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   starBadge: {
-    backgroundColor: colors.yellowLight,
+    backgroundColor: colors.goldLight,
     borderWidth: borders.thin,
     borderColor: borders.color,
     borderRadius: radius.pill,
@@ -152,24 +152,31 @@ const styles = StyleSheet.create({
   price: { ...type.bodyMedium, fontWeight: "800", color: colors.textPrimary },
   duration: { ...type.caption, color: colors.textSecondary },
   arrowButton: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
     borderRadius: radius.pill,
     borderWidth: borders.thin,
     borderColor: borders.color,
-    backgroundColor: colors.lime,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: borders.color,
+    shadowOffset: { width: 1.5, height: 1.5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 2,
   },
   trustRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
     marginTop: spacing.sm,
-    backgroundColor: colors.limeLight,
+    backgroundColor: colors.skyLight,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
     alignSelf: "flex-start",
   },
   trust: { ...type.caption, fontWeight: "700", color: colors.textPrimary },

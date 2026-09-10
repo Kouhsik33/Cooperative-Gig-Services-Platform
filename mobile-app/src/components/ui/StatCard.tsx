@@ -43,11 +43,11 @@ const styles = StyleSheet.create({
 
 const TONE_STYLES: Record<NonNullable<Props["tone"]>, { backgroundColor: string }> = {
   default: { backgroundColor: colors.surface },
-  highlight: { backgroundColor: colors.lime },
-  lime: { backgroundColor: colors.lime },
-  yellow: { backgroundColor: colors.yellow },
+  highlight: { backgroundColor: colors.primaryLight },
+  lime: { backgroundColor: colors.skyLight },
+  yellow: { backgroundColor: colors.goldLight },
   coral: { backgroundColor: colors.primaryLight },
-  cyan: { backgroundColor: colors.cyanLight },
+  cyan: { backgroundColor: colors.skyLight },
   purple: { backgroundColor: colors.purpleLight },
   peach: { backgroundColor: colors.peachLight },
 };

@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { useAuth } from "../../store/AuthContext";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import { Button } from "../../components/ui";
 import { borders, colors, radius, shadow, spacing, type } from "../../theme/tokens";
@@ -51,22 +52,27 @@ export default function LoginScreen({ navigation }: Props) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Header Row */}
-        <View style={styles.topBar}>
+        {/* Top Header: EST. 2026 Card with Language Bar directly below */}
+        <View style={styles.topHeader}>
           <View style={styles.brandEst}>
             <Text style={styles.brandEstText}>EST. 2026</Text>
           </View>
           <View style={styles.langWrapper}>
-            <LanguageSwitcher />
+            <LanguageSwitcher center />
           </View>
         </View>
 
         {/* Hero Section: Centered & Balanced */}
         <View style={styles.heroSection}>
           <View style={styles.emblemBadge}>
-            <Text style={styles.emblemIcon}>🤝</Text>
+            <View style={styles.emblemInner}>
+              <MaterialCommunityIcons name="hand-heart" size={30} color={colors.primary} />
+            </View>
+            <View style={styles.sparkleBadge}>
+              <Ionicons name="sparkles" size={10} color={colors.surface} />
+            </View>
           </View>
-          <Text style={styles.heroTitle}>SAHAKARYA</Text>
+          <Text style={styles.heroTitle}>Sahakãrya</Text>
           <View style={styles.goldSubtitlePill}>
             <Text style={styles.goldSubtitleText}>COOPERATIVE GIG NETWORK</Text>
           </View>
@@ -121,10 +127,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.xxl,
   },
-  topBar: {
-    flexDirection: "row",
+  topHeader: {
     alignItems: "center",
-    justifyContent: "space-between",
     marginBottom: spacing.xl,
     gap: spacing.sm,
   },
@@ -132,14 +136,19 @@ const styles = StyleSheet.create({
     borderWidth: borders.thin,
     borderColor: borders.color,
     backgroundColor: colors.surface,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
     borderRadius: radius.pill,
-    shadowColor: borders.color,
-    shadowOffset: { width: 1.5, height: 1.5 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 1,
+    ...Platform.select({
+      web: { boxShadow: `1.5px 1.5px 0px ${borders.color}` } as any,
+      default: {
+        shadowColor: borders.color,
+        shadowOffset: { width: 1.5, height: 1.5 },
+        shadowOpacity: 1,
+        shadowRadius: 0,
+        elevation: 1,
+      },
+    }),
   },
   brandEstText: {
     ...type.caption,
@@ -148,33 +157,71 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   langWrapper: {
-    flexShrink: 1,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
   },
   heroSection: {
     alignItems: "center",
     marginBottom: spacing.xl,
   },
   emblemBadge: {
-    width: 52,
-    height: 52,
+    width: 64,
+    height: 64,
     borderRadius: radius.pill,
-    backgroundColor: colors.goldLight,
+    backgroundColor: colors.surface,
     borderWidth: borders.default,
     borderColor: borders.color,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.sm,
-    shadowColor: borders.color,
-    shadowOffset: { width: 2.5, height: 2.5 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 3,
+    position: "relative",
+    ...Platform.select({
+      web: { boxShadow: `3px 3px 0px ${borders.color}` } as any,
+      default: {
+        shadowColor: borders.color,
+        shadowOffset: { width: 3, height: 3 },
+        shadowOpacity: 1,
+        shadowRadius: 0,
+        elevation: 4,
+      },
+    }),
   },
-  emblemIcon: {
-    fontSize: 26,
+  emblemInner: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sparkleBadge: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    width: 20,
+    height: 20,
+    borderRadius: radius.pill,
+    backgroundColor: colors.gold,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    alignItems: "center",
+    justifyContent: "center",
+    ...Platform.select({
+      web: { boxShadow: `1px 1px 0px ${borders.color}` } as any,
+      default: {
+        shadowColor: borders.color,
+        shadowOffset: { width: 1, height: 1 },
+        shadowOpacity: 1,
+        shadowRadius: 0,
+        elevation: 2,
+      },
+    }),
   },
   heroTitle: {
     ...type.display,
+    fontFamily: "Kaltera",
     fontSize: 34,
     lineHeight: 40,
     fontWeight: "900",
@@ -183,9 +230,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   goldSubtitlePill: {
-    backgroundColor: colors.goldLight,
+    backgroundColor: colors.skyLight,
     borderWidth: borders.thin,
-    borderColor: colors.gold,
+    borderColor: borders.color,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: 3,
@@ -194,7 +241,7 @@ const styles = StyleSheet.create({
   goldSubtitleText: {
     ...type.caption,
     fontWeight: "800",
-    color: colors.goldDark,
+    color: colors.textPrimary,
     letterSpacing: 0.8,
   },
   tagline: {

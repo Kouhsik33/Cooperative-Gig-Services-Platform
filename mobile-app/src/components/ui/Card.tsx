@@ -173,10 +173,10 @@ const styles = StyleSheet.create({
 
 const VARIANT_STYLES: Record<CardVariant, ViewStyle> = {
   surface: { backgroundColor: colors.surface },
-  lime: { backgroundColor: colors.lime },
+  lime: { backgroundColor: colors.skyLight },
   coral: { backgroundColor: colors.primaryLight },
-  yellow: { backgroundColor: colors.yellowLight },
-  cyan: { backgroundColor: colors.cyanLight },
+  yellow: { backgroundColor: colors.goldLight },
+  cyan: { backgroundColor: colors.skyLight },
   purple: { backgroundColor: colors.purpleLight },
   peach: { backgroundColor: colors.peachLight },
   stacked: { backgroundColor: colors.surface },

@@ -13,13 +13,13 @@ const TONE_STYLES: Record<
   NonNullable<BadgeProps["tone"]>,
   { bg: string; fg: string }
 > = {
-  success: { bg: colors.limeLight, fg: colors.textPrimary },
-  warning: { bg: colors.yellowLight, fg: colors.textPrimary },
-  error: { bg: colors.primaryLight, fg: colors.error },
-  info: { bg: colors.cyanLight, fg: colors.textPrimary },
+  success: { bg: colors.successLight, fg: colors.success },
+  warning: { bg: colors.warningLight, fg: colors.warning },
+  error: { bg: colors.primaryLight, fg: colors.primary },
+  info: { bg: colors.skyLight, fg: colors.textPrimary },
   neutral: { bg: colors.surface, fg: colors.textPrimary },
-  lime: { bg: colors.lime, fg: colors.textPrimary },
-  yellow: { bg: colors.yellow, fg: colors.textPrimary },
+  lime: { bg: colors.successLight, fg: colors.success },
+  yellow: { bg: colors.goldLight, fg: colors.goldDark },
   coral: { bg: colors.primary, fg: colors.textInverse },
 };
 
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   verifiedRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.limeLight,
+    backgroundColor: colors.skyLight,
     borderWidth: borders.thin,
     borderColor: borders.color,
     borderRadius: radius.pill,

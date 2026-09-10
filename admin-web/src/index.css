@@ -11,80 +11,102 @@
 }
 
 :root {
-  /* 60% Dominant Base: Vanilla Cream (Light Canvas & Clean Surfaces) */
-  --color-vanilla: #FFF6E8;
-  --color-vanilla-light: #FFFBF5;
-  --color-vanilla-dark: #F7E7CE;
-  --color-canvas: #FFF6E8;
-  --color-surface: #FFFFFF;
+  /* ============================================================================
+   * 🎨 ROOT COLOR PALETTE CONFIGURATION - "CASSETTE TAPE" RETRO NOSTALGIC THEME
+   * 
+   * 💡 TO CHANGE COLOR PALETTES FOR THE ENTIRE ADMIN WEB:
+   * Simply modify the hex values of these 6 root variables below!
+   * Everything in the application will automatically update.
+   * ============================================================================ */
+  --palette-canvas: #EDF2F4;       /* 60% Dominant Light Canvas */
+  --palette-ink: #2B2D42;          /* 30% Deep Slate Navy Ink & Borders */
+  --palette-primary: #EF233C;      /* 10% Vibrant Retro Crimson Red (CTAs/Hero) */
+  --palette-primary-dark: #D90429; /* Deep Red for hover/active/borders */
+  --palette-primary-light: #FDEDF0;/* Soft Red Tint for badges/cards */
+  --palette-secondary: #8D99AE;    /* Cool Muted Steel Slate Blue */
+  --palette-secondary-dark: #606D80;
+  --palette-secondary-light: #E6EAEE;
+  --palette-surface: #FFFFFF;      /* Crisp White Card Surface */
+  --palette-surface-alt: #F8FAFB;  /* Subtle Elevated Surface */
+  --palette-border: #2B2D42;       /* Hard Neo-retro Border Stroke */
+  --palette-shadow: #2B2D42;       /* Solid Neobrutalist Offset Shadow */
 
-  /* 30% Secondary Brand Structure: Cherry Velvet */
-  --color-cherry: #C1121F;
-  --color-cherry-dark: #980F19;
-  --color-cherry-light: #FDE8EA;
-  --color-primary: #C1121F;
-  --color-primary-dark: #980F19;
-  --color-primary-light: #FDE8EA;
+  /* Semantic aliases dynamically wired to the palette */
+  --color-canvas: var(--palette-canvas);
+  --color-surface: var(--palette-surface);
+  --color-surface-elevated: var(--palette-surface-alt);
+  --color-vanilla: var(--palette-canvas);
+  --color-vanilla-light: var(--palette-surface-alt);
+  --color-ink: var(--palette-ink);
+  --color-ink-secondary: #4A5068;
+  --color-ink-muted: var(--palette-secondary);
+  --color-border: var(--palette-border);
 
-  /* 10% Accents: Sky Powder & Golden Typography Style */
-  --color-sky: #A9C6EA;
-  --color-sky-light: #EBF2FA;
-  --color-sky-dark: #7FA7D9;
-  --color-secondary: #A9C6EA;
+  --color-primary: var(--palette-primary);
+  --color-primary-dark: var(--palette-primary-dark);
+  --color-primary-light: var(--palette-primary-light);
 
-  /* Golden Typography & Royal Trim */
-  --color-gold: #C59B27;
-  --color-gold-light: #FFF4D2;
-  --color-gold-dark: #9A7513;
+  --color-cherry: var(--palette-primary);
+  --color-cherry-dark: var(--palette-primary-dark);
+  --color-cherry-light: var(--palette-primary-light);
+
+  --color-secondary: var(--palette-secondary);
+  --color-sky: var(--palette-secondary);
+  --color-sky-light: var(--palette-secondary-light);
+  --color-sky-dark: var(--palette-secondary-dark);
+
+  /* Gold & Aux Tones */
+  --color-gold: #E09F3E;
+  --color-gold-light: #FDF5E8;
+  --color-gold-dark: #9E6410;
   --color-gold-metallic: #D4AF37;
 
-  /* Deep Ink & Borders */
-  --color-ink: #1F1516;
-  --color-ink-secondary: #5C4A4D;
-  --color-ink-muted: #8C787B;
-  --color-border: #1F1516;
-
-  /* Semantic status colors */
-  --color-success: #15803D;
-  --color-warning: #B45309;
-  --color-error: #C1121F;
-  --color-info: #2563EB;
+  /* Status colors */
+  --color-success: #2B9348;
+  --color-warning: #E76F51;
+  --color-error: var(--palette-primary);
+  --color-info: var(--palette-secondary-dark);
 }
 
 body {
-  background-color: #FFF6E8;
-  color: #1F1516;
+  background-color: var(--palette-canvas);
+  color: var(--palette-ink);
   font-family: 'Kaltera', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   letter-spacing: -0.01em;
 }
 
-/* Premium Golden Typography styles */
-.text-gold-gradient {
-  background: linear-gradient(135deg, #A67C1E 0%, #D4AF37 40%, #F5E5A4 70%, #946C15 100%);
+/* Neobrutalist Hard Offset Shadows with zero blur */
+.shadow-retro {
+  box-shadow: 3.5px 3.5px 0px var(--palette-shadow);
+}
+.shadow-retro-sm {
+  box-shadow: 2px 2px 0px var(--palette-shadow);
+}
+.shadow-retro-lg {
+  box-shadow: 5px 5px 0px var(--palette-shadow);
+}
+
+/* Nostalgic Cassette Retro Gradient text & badges */
+.text-crimson-gradient {
+  background: linear-gradient(135deg, #EF233C 0%, #D90429 60%, #8D99AE 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.text-cherry-gradient {
-  background: linear-gradient(135deg, #C1121F 0%, #E63946 50%, #980F19 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.badge-retro-primary {
+  background: var(--palette-primary);
+  border: 2px solid var(--palette-border);
+  color: #FFFFFF;
+}
+
+.badge-retro-secondary {
+  background: var(--palette-secondary-light);
+  border: 2px solid var(--palette-border);
+  color: var(--palette-ink);
 }
 
 .badge-gold {
-  background: linear-gradient(135deg, #FFF6E8 0%, #FFF4D2 100%);
-  border: 2px solid #C59B27;
-  color: #87620C;
-}
-
-.badge-sky {
-  background: #EBF2FA;
-  border: 2px solid #1F1516;
-  color: #1F1516;
-}
-
-.badge-cherry {
-  background: #C1121F;
-  border: 2px solid #1F1516;
-  color: #FFFFFF;
+  background: linear-gradient(135deg, #FDF5E8 0%, #FEF3D6 100%);
+  border: 2px solid #E09F3E;
+  color: #9E6410;
 }

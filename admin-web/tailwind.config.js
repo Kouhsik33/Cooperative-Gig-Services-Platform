@@ -8,78 +8,80 @@ export default {
         kaltera: ["Kaltera", "sans-serif"],
       },
       colors: {
-        // 60% Dominant: Vanilla Cream
-        vanilla: {
-          DEFAULT: "#FFF6E8",
-          light: "#FFFBF5",
-          dark: "#F7E7CE",
-        },
-        canvas: "#FFF6E8",
-        surface: "#FFFFFF",
+        // 60% Dominant: Canvas (#EDF2F4 in CASSETTE TAPE theme)
+        canvas: "var(--palette-canvas)",
+        surface: "var(--palette-surface)",
 
-        // 30% Structural Brand: Cherry Velvet
+        // 10% Hero CTAs: Vibrant Retro Crimson Red (#EF233C)
         primary: {
-          DEFAULT: "#C1121F",
-          dark: "#980F19",
-          light: "#FDE8EA",
+          DEFAULT: "var(--palette-primary)",
+          dark: "var(--palette-primary-dark)",
+          light: "var(--palette-primary-light)",
         },
         cherry: {
-          DEFAULT: "#C1121F",
-          dark: "#980F19",
-          light: "#FDE8EA",
+          DEFAULT: "var(--palette-primary)",
+          dark: "var(--palette-primary-dark)",
+          light: "var(--palette-primary-light)",
         },
 
-        // 10% Accent: Sky Powder
-        sky: {
-          DEFAULT: "#A9C6EA",
-          light: "#EBF2FA",
-          dark: "#7FA7D9",
-        },
+        // Secondary Steel Slate Blue (#8D99AE)
         secondary: {
-          DEFAULT: "#A9C6EA",
-          dark: "#7FA7D9",
-          light: "#EBF2FA",
+          DEFAULT: "var(--palette-secondary)",
+          dark: "var(--palette-secondary-dark)",
+          light: "var(--palette-secondary-light)",
+        },
+        sky: {
+          DEFAULT: "var(--palette-secondary)",
+          light: "var(--palette-secondary-light)",
+          dark: "var(--palette-secondary-dark)",
+        },
+        vanilla: {
+          DEFAULT: "var(--palette-canvas)",
+          light: "var(--palette-surface-alt)",
+          dark: "var(--palette-secondary-light)",
         },
 
-        // 10% Accent: Golden Typography & Royal Accents
+        // 30% Structural Contrast & Borders: Deep Slate Navy Ink (#2B2D42)
+        ink: {
+          DEFAULT: "var(--palette-ink)",
+          secondary: "var(--color-ink-secondary)",
+          muted: "var(--color-ink-muted)",
+        },
+        border: "var(--palette-border)",
+
+        // Retro Gold & Trim Accents
         gold: {
-          DEFAULT: "#C59B27",
-          light: "#FFF4D2",
-          dark: "#9A7513",
-          metallic: "#D4AF37",
+          DEFAULT: "var(--color-gold)",
+          light: "var(--color-gold-light)",
+          dark: "var(--color-gold-dark)",
+          metallic: "var(--color-gold-metallic)",
         },
 
-        // Legacy compatibility aliases mapped harmoniously
+        // Auxiliary retro tones
         lime: {
-          DEFAULT: "#D5E5B8",
-          light: "#F2F8E9",
-          dark: "#A3BD79",
+          DEFAULT: "#90BE6D",
+          light: "#F0F7EB",
+          dark: "#58813B",
         },
         yellow: {
-          DEFAULT: "#F9DCA4",
-          light: "#FFF4D2",
+          DEFAULT: "#F9C74F",
+          light: "#FEF8E9",
           dark: "#C59B27",
         },
         cyan: {
-          DEFAULT: "#A9C6EA",
-          light: "#EBF2FA",
-          dark: "#7FA7D9",
+          DEFAULT: "var(--palette-secondary)",
+          light: "var(--palette-secondary-light)",
+          dark: "var(--palette-secondary-dark)",
         },
         purple: {
-          DEFAULT: "#DAC8E8",
-          light: "#F4EFF9",
-          dark: "#A48BBD",
+          DEFAULT: "#7209B7",
+          light: "#F3E8F9",
+          dark: "#480CA8",
         },
         peach: {
-          DEFAULT: "#FAD8C3",
-          light: "#FFF0E6",
-          dark: "#CFA085",
-        },
-
-        ink: {
-          DEFAULT: "#1F1516",
-          secondary: "#5C4A4D",
-          muted: "#8C787B",
+          DEFAULT: "#F4A261",
+          light: "#FDF4EC",
+          dark: "#C46820",
         },
       },
       borderRadius: {
@@ -89,12 +91,11 @@ export default {
         "2.5": "2.5px",
       },
       boxShadow: {
-        retro: "3.5px 3.5px 0px #1F1516",
-        "retro-sm": "2px 2px 0px #1F1516",
-        "retro-lg": "5px 5px 0px #1F1516",
-        card: "3.5px 3.5px 0px #1F1516",
-        gold: "3.5px 3.5px 0px #C59B27",
-        cherry: "3.5px 3.5px 0px #980F19",
+        retro: "3.5px 3.5px 0px var(--palette-shadow)",
+        "retro-sm": "2px 2px 0px var(--palette-shadow)",
+        "retro-lg": "5px 5px 0px var(--palette-shadow)",
+        card: "3.5px 3.5px 0px var(--palette-shadow)",
+        primary: "3.5px 3.5px 0px var(--palette-primary-dark)",
       },
     },
   },

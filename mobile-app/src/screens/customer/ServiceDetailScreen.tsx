@@ -18,7 +18,7 @@ import {
   SkeletonList,
   TrustList,
 } from "../../components/ui";
-import { colors, layout, radius, spacing, type } from "../../theme/tokens";
+import { borders, colors, layout, radius, shadow, spacing, type } from "../../theme/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { icons, iconSize } from "../../theme/icons";
 
@@ -84,9 +84,15 @@ export default function ServiceDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
         <View style={styles.hero}>
-          <Text style={styles.heroIcon}>{iconForCategory(service.category)}</Text>
+          <View style={styles.heroIconWrap}>
+            <Ionicons
+              name={iconForCategory(service.category) as any}
+              size={28}
+              color={colors.primary}
+            />
+          </View>
           <Text style={styles.title}>{service.name}</Text>
 
           <View style={styles.proofRow}>
@@ -275,9 +281,8 @@ export default function ServiceDetailScreen({ route, navigation }: Props) {
         </Card>
       </ScrollView>
 
-      {/* Sticky CTA (§27) — the primary action stays reachable however far
-          the customer has scrolled into the detail. */}
-      <View style={[styles.ctaBar, { paddingBottom: spacing.lg + insets.bottom }]}>
+      {/* Sticky Bottom CTA Bar */}
+      <View style={[styles.ctaBar, { paddingBottom: Math.max(spacing.lg, insets.bottom + 8) }]}>
         <View style={styles.ctaPrice}>
           <Text style={styles.ctaPriceValue}>{money(activePrice)}</Text>
           <Text style={styles.ctaPriceLabel}>
@@ -286,6 +291,7 @@ export default function ServiceDetailScreen({ route, navigation }: Props) {
         </View>
         <Button
           label={t("serviceDetail.bookThis")}
+          variant="primary"
           onPress={() =>
             navigation.navigate("BookingSlot", {
               serviceId: service.id,
@@ -312,21 +318,33 @@ function SplitRow({ label, value, emphasis }: { label: string; value: string; em
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  scroll: { flex: 1 },
   container: { padding: spacing.xl, paddingBottom: layout.stickyBarClearance + spacing.xl },
   hero: { marginBottom: spacing.lg },
-  heroIcon: { fontSize: 40, marginBottom: spacing.sm },
-  title: { ...type.h1, color: colors.textPrimary },
+  heroIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.skyLight,
+    borderWidth: borders.default,
+    borderColor: borders.color,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.md,
+    ...shadow.sm,
+  },
+  title: { ...type.h1, fontWeight: "900", color: colors.textPrimary },
   proofRow: { flexDirection: "row", alignItems: "center", marginTop: spacing.sm, gap: spacing.sm },
   proofText: { ...type.small, color: colors.textSecondary },
   proofMuted: { ...type.small, color: colors.textMuted },
-  completedText: { ...type.small, color: colors.textSecondary, marginTop: spacing.xs },
-  price: { ...type.h2, color: colors.primary, marginTop: spacing.md },
+  completedText: { ...type.small, fontWeight: "600", color: colors.textSecondary, marginTop: spacing.xs },
+  price: { ...type.h2, fontWeight: "800", color: colors.primary, marginTop: spacing.md },
   duration: { ...type.small, color: colors.textSecondary, marginTop: spacing.xs },
-  description: { ...type.body, color: colors.textSecondary, marginBottom: spacing.xl },
+  description: { ...type.body, color: colors.textSecondary, marginBottom: spacing.xl, lineHeight: 22 },
   warningCard: {
     backgroundColor: colors.warningLight,
     borderColor: colors.warning,
-    borderWidth: 1,
+    borderWidth: borders.default,
     marginBottom: spacing.lg,
   },
   warningTitle: { ...type.bodyMedium, color: colors.warning, marginBottom: spacing.xs },
@@ -335,23 +353,37 @@ const styles = StyleSheet.create({
   infoCard: {
     backgroundColor: colors.infoLight,
     borderColor: colors.info,
-    borderWidth: 1,
+    borderWidth: borders.default,
     marginBottom: spacing.lg,
   },
   infoTitle: { ...type.bodyMedium, color: colors.info, marginBottom: spacing.xs },
   infoText: { ...type.small, color: colors.info },
-  listCard: { marginBottom: spacing.lg },
+  listCard: {
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surface,
+    borderWidth: borders.default,
+    borderColor: borders.color,
+    borderRadius: radius.lg,
+    ...shadow.sm,
+  },
   packageSection: { marginBottom: spacing.lg },
-  listTitle: { ...type.h3, color: colors.textPrimary, marginBottom: spacing.md },
+  listTitle: { ...type.h3, fontWeight: "800", color: colors.textPrimary, marginBottom: spacing.md },
   listRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: spacing.sm },
   tick: { marginRight: spacing.sm, marginTop: 2 },
   cross: { marginRight: spacing.sm, marginTop: 2 },
   listItem: { ...type.body, color: colors.textPrimary, flex: 1 },
   listItemMuted: { ...type.body, color: colors.textMuted, flex: 1 },
-  coopCard: { backgroundColor: colors.primaryLight, marginBottom: spacing.lg },
-  coopTitle: { ...type.h3, color: colors.primaryDark, marginBottom: spacing.md },
-  coopItem: { ...type.small, color: colors.primaryDark, flex: 1 },
-  splitCaption: { ...type.caption, color: colors.textSecondary, marginBottom: spacing.md },
+  coopCard: {
+    backgroundColor: colors.primaryLight,
+    borderWidth: borders.default,
+    borderColor: borders.color,
+    borderRadius: radius.lg,
+    marginBottom: spacing.lg,
+    ...shadow.sm,
+  },
+  coopTitle: { ...type.h3, fontWeight: "800", color: colors.textPrimary, marginBottom: spacing.md },
+  coopItem: { ...type.small, color: colors.textPrimary, flex: 1 },
+  splitCaption: { ...type.caption, fontWeight: "700", color: colors.textSecondary, marginBottom: spacing.md },
   splitRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -359,30 +391,39 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   splitLabel: { ...type.small, color: colors.textSecondary, flex: 1, marginRight: spacing.md },
-  splitLabelStrong: { ...type.bodyMedium, color: colors.primaryDark },
+  splitLabelStrong: { ...type.bodyMedium, fontWeight: "800", color: colors.primary },
   splitValue: { ...type.smallMedium, color: colors.textPrimary, flexShrink: 0, textAlign: "right" },
-  splitValueStrong: { ...type.h3, color: colors.primaryDark },
+  splitValueStrong: { ...type.h3, fontWeight: "900", color: colors.primary },
   trustWrap: { marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
   stepRow: { flexDirection: "row", marginBottom: spacing.lg },
   stepNum: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
     backgroundColor: colors.primary,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
     alignItems: "center",
     justifyContent: "center",
     marginRight: spacing.md,
   },
-  stepNumText: { ...type.caption, color: colors.primaryForeground, fontWeight: "700" },
+  stepNumText: { ...type.caption, color: colors.textInverse, fontWeight: "800" },
   stepBody: { flex: 1 },
-  stepTitle: { ...type.bodyMedium, color: colors.textPrimary },
+  stepTitle: { ...type.bodyMedium, fontWeight: "800", color: colors.textPrimary },
   stepText: { ...type.small, color: colors.textSecondary, marginTop: 2 },
   faqRow: { marginBottom: spacing.lg },
-  faqQ: { ...type.bodyMedium, color: colors.textPrimary },
+  faqQ: { ...type.bodyMedium, fontWeight: "700", color: colors.textPrimary },
   faqA: { ...type.small, color: colors.textSecondary, marginTop: spacing.xs, lineHeight: 20 },
   emptyReviews: { ...type.small, color: colors.textMuted },
   reviewsSection: { marginTop: spacing.sm },
-  reviewCard: { marginBottom: spacing.md, backgroundColor: colors.surface },
+  reviewCard: {
+    marginBottom: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: borders.default,
+    borderColor: borders.color,
+    borderRadius: radius.lg,
+    ...shadow.sm,
+  },
   reviewHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   reviewMeta: { ...type.caption, color: colors.textMuted },
   reviewComment: { ...type.body, color: colors.textPrimary, marginTop: spacing.sm },
@@ -390,16 +431,23 @@ const styles = StyleSheet.create({
   ctaBar: {
     flexDirection: "row",
     alignItems: "center",
-    padding: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
+    borderTopWidth: borders.default,
+    borderTopColor: borders.color,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
     gap: spacing.lg,
+    shadowColor: borders.color,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 8,
+    zIndex: 99,
   },
   ctaPrice: { minWidth: 90 },
-  ctaPriceValue: { ...type.h3, color: colors.textPrimary },
-  ctaPriceLabel: { ...type.caption, color: colors.textMuted },
-  ctaButton: { flex: 1 },
+  ctaPriceValue: { ...type.h2, fontWeight: "900", color: colors.textPrimary },
+  ctaPriceLabel: { ...type.caption, fontWeight: "700", color: colors.textSecondary },
+  ctaButton: { flex: 1, minHeight: 48 },
 });

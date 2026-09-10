@@ -11,13 +11,14 @@ interface Props {
   // Persists the choice server-side via PATCH /auth/language — only valid
   // once the user is authenticated. LoginScreen (pre-auth) omits this.
   persist?: boolean;
+  center?: boolean;
 }
 
 // Part G — "Language switcher visible on first launch and in settings."
 // There's no dedicated Settings screen yet (out of scope for this phase),
 // so this is placed on LoginScreen (first launch) and each role's home
 // screen as a stand-in.
-export default function LanguageSwitcher({ persist = false }: Props) {
+export default function LanguageSwitcher({ persist = false, center = false }: Props) {
   const { t, i18n } = useTranslation();
 
   async function select(code: string) {
@@ -35,8 +36,11 @@ export default function LanguageSwitcher({ persist = false }: Props) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ flexDirection: "row", paddingRight: spacing.sm }}
-      style={{ marginRight: -spacing.sm, flexGrow: 0 }}
+      contentContainerStyle={[
+        { flexDirection: "row", alignItems: "center", paddingRight: spacing.sm },
+        center && { justifyContent: "center", minWidth: "100%" },
+      ]}
+      style={{ flexGrow: 0 }}
     >
       {LANGUAGES.map((code) => (
         <Chip
