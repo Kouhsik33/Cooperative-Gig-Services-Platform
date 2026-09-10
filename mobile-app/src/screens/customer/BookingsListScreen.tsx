@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useBookingSync } from "../../lib/useBookingSync";
@@ -77,11 +77,16 @@ export default function BookingsListScreen({ navigation }: Props) {
       ListHeaderComponent={
         <View>
           <Text style={styles.title}>{t("bookings.title")}</Text>
-          <View style={styles.segmentRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.segmentRow}
+            style={styles.segmentScroll}
+          >
             {SEGMENTS.map((s) => (
               <Chip key={s} label={t(`bookings.${s}`)} selected={s === segment} onPress={() => setSegment(s)} />
             ))}
-          </View>
+          </ScrollView>
         </View>
       }
       ListEmptyComponent={
@@ -154,7 +159,15 @@ export default function BookingsListScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   list: { padding: spacing.xl, paddingBottom: spacing.xxxl },
   title: { ...type.h1, color: colors.textPrimary, marginBottom: spacing.lg },
-  segmentRow: { flexDirection: "row", marginBottom: spacing.lg },
+  segmentScroll: {
+    marginHorizontal: -spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  segmentRow: {
+    flexDirection: "row",
+    paddingHorizontal: spacing.xl,
+    paddingRight: spacing.xl + spacing.md,
+  },
   card: { marginBottom: spacing.md },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   service: { ...type.h3, color: colors.textPrimary, flexShrink: 1, marginRight: spacing.sm },
