@@ -7,11 +7,11 @@ interface Props {
 
 export default function ChartCard({ title, subtitle, children, action }: Props) {
   return (
-    <div className="rounded-card border border-ink/10 bg-surface p-5 shadow-card">
+    <div className="rounded-card border-2 border-ink bg-surface p-6 shadow-card">
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <h2 className="text-lg font-medium text-ink">{title}</h2>
-          {subtitle && <p className="text-sm text-ink-muted">{subtitle}</p>}
+          <h2 className="text-xl font-black tracking-tight text-ink">{title}</h2>
+          {subtitle && <p className="text-sm font-semibold text-ink/70">{subtitle}</p>}
         </div>
         {action}
       </div>

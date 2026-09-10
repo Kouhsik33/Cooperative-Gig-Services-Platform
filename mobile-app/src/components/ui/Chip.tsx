@@ -1,23 +1,37 @@
+import React from "react";
 import { StyleSheet, Text, TouchableOpacity } from "react-native";
-import { colors, radius, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
+import { borders, colors, radius, shadow, spacing, type } from "../../theme/tokens";
 
 interface Props {
   label: string;
+  icon?: keyof typeof Ionicons.glyphMap;
   selected?: boolean;
   onPress?: () => void;
   disabled?: boolean;
 }
 
-// Master prompt §14 — day/time picker chips and §2 skill chips share this
-// one primitive so selected/unselected states look identical everywhere.
-export default function Chip({ label, selected, onPress, disabled }: Props) {
+export default function Chip({ label, icon, selected, onPress, disabled }: Props) {
   return (
     <TouchableOpacity
-      style={[styles.chip, selected && styles.chipSelected, disabled && styles.chipDisabled]}
+      style={[
+        styles.chip,
+        selected && styles.chipSelected,
+        selected && shadow.sm,
+        disabled && styles.chipDisabled,
+      ]}
       onPress={onPress}
       disabled={disabled || !onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
     >
+      {icon ? (
+        <Ionicons
+          name={icon}
+          size={14}
+          color={selected ? colors.textInverse : colors.textPrimary}
+          style={styles.icon}
+        />
+      ) : null}
       <Text style={[styles.label, selected && styles.labelSelected]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -25,10 +39,12 @@ export default function Chip({ label, selected, onPress, disabled }: Props) {
 
 const styles = StyleSheet.create({
   chip: {
-    minHeight: 36,
+    minHeight: 38,
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
     backgroundColor: colors.surface,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.lg,
@@ -36,8 +52,13 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
     marginBottom: spacing.sm,
   },
-  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: borders.color,
+    borderWidth: borders.default,
+  },
   chipDisabled: { opacity: 0.5 },
-  label: { ...type.smallMedium, color: colors.textSecondary },
+  icon: { marginRight: 6 },
+  label: { ...type.smallMedium, color: colors.textPrimary, textTransform: "capitalize" },
   labelSelected: { color: colors.textInverse },
 });

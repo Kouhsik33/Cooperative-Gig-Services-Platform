@@ -1,3 +1,4 @@
+import React from "react";
 import {
   AccessibilityRole,
   StyleProp,
@@ -6,25 +7,28 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import { colors, radius, shadow, spacing } from "../../theme/tokens";
+import { borders, colors, radius, shadow, spacing } from "../../theme/tokens";
+
+export type CardVariant =
+  | "surface"
+  | "lime"
+  | "coral"
+  | "yellow"
+  | "cyan"
+  | "purple"
+  | "peach"
+  | "stacked";
 
 interface Props {
   children: React.ReactNode;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   elevated?: boolean;
-  // Forwarded to the touchable so a tappable card announces itself as one
-  // action with one label, instead of leaking its inner Text nodes to a
-  // screen reader as separate, contextless items.
+  variant?: CardVariant;
   accessibilityRole?: AccessibilityRole;
   accessibilityLabel?: string;
 }
 
-// Layout props that must live on the OUTER touchable when the card is
-// pressable — otherwise `flex: 1` (two role cards side by side on the
-// Register screen), margins, or an explicit width have no effect and the
-// row overflows the screen. Everything else (padding, background, border,
-// the selected-state overrides) stays on the inner view.
 const OUTER_LAYOUT_KEYS = [
   "flex",
   "flexGrow",
@@ -49,11 +53,36 @@ export default function Card({
   onPress,
   style,
   elevated = true,
+  variant = "surface",
   accessibilityRole,
   accessibilityLabel,
 }: Props) {
+  const variantStyle = VARIANT_STYLES[variant] || styles.surface;
+
+  const cardContent = (
+    <View
+      style={[
+        styles.card,
+        variantStyle,
+        elevated && shadow.md,
+        variant === "stacked" && styles.stackedFace,
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+
   if (!onPress) {
-    return <View style={[styles.card, elevated && shadow.sm, style]}>{children}</View>;
+    if (variant === "stacked") {
+      return (
+        <View style={styles.stackedWrapper}>
+          <View style={styles.stackedBacking} />
+          {cardContent}
+        </View>
+      );
+    }
+    return cardContent;
   }
 
   const flat = (StyleSheet.flatten(style) ?? {}) as Record<string, unknown>;
@@ -62,27 +91,93 @@ export default function Card({
     if (flat[k] !== undefined) outer[k] = flat[k];
   }
 
+  if (variant === "stacked") {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.9}
+        accessibilityRole={accessibilityRole ?? "button"}
+        accessibilityLabel={accessibilityLabel}
+        style={[styles.stackedWrapper, outer]}
+      >
+        <View style={styles.stackedBacking} />
+        <View
+          style={[
+            styles.card,
+            styles.fill,
+            variantStyle,
+            styles.stackedFace,
+            style,
+          ]}
+        >
+          {children}
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.85}
+      activeOpacity={0.88}
       accessibilityRole={accessibilityRole ?? "button"}
       accessibilityLabel={accessibilityLabel}
       style={outer}
     >
-      <View style={[styles.card, styles.fill, elevated && shadow.sm, style]}>{children}</View>
+      <View
+        style={[
+          styles.card,
+          styles.fill,
+          variantStyle,
+          elevated && shadow.md,
+          style,
+        ]}
+      >
+        {children}
+      </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: borders.default,
+    borderColor: borders.color,
     padding: spacing.lg,
   },
-  // Inner view fills the (possibly flex-stretched) touchable.
+  surface: {
+    backgroundColor: colors.surface,
+  },
   fill: { flexGrow: 1 },
+
+  // Stacked 3D card style (replica of Mystery Sandwich & Task List cards)
+  stackedWrapper: {
+    position: "relative",
+    marginRight: 4,
+    marginBottom: 4,
+  },
+  stackedBacking: {
+    position: "absolute",
+    top: 4,
+    left: 4,
+    right: -4,
+    bottom: -4,
+    backgroundColor: borders.color,
+    borderRadius: radius.lg,
+  },
+  stackedFace: {
+    backgroundColor: colors.surface,
+  },
 });
+
+const VARIANT_STYLES: Record<CardVariant, ViewStyle> = {
+  surface: { backgroundColor: colors.surface },
+  lime: { backgroundColor: colors.lime },
+  coral: { backgroundColor: colors.primaryLight },
+  yellow: { backgroundColor: colors.yellowLight },
+  cyan: { backgroundColor: colors.cyanLight },
+  purple: { backgroundColor: colors.purpleLight },
+  peach: { backgroundColor: colors.peachLight },
+  stacked: { backgroundColor: colors.surface },
+};

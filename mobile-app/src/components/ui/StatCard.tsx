@@ -1,17 +1,18 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors, radius, spacing, type } from "../../theme/tokens";
+import { borders, colors, radius, shadow, spacing, type } from "../../theme/tokens";
 
 interface Props {
   label: string;
   value: string;
-  tone?: "default" | "highlight";
+  tone?: "default" | "highlight" | "lime" | "yellow" | "coral" | "cyan" | "purple" | "peach";
 }
 
 export default function StatCard({ label, value, tone = "default" }: Props) {
+  const bgStyle = TONE_STYLES[tone] || styles.cardDefault;
   return (
-    <View style={[styles.card, tone === "highlight" && styles.cardHighlight]}>
+    <View style={[styles.card, bgStyle, shadow.sm]}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, tone === "highlight" && styles.valueHighlight]}>{value}</Text>
+      <Text style={styles.value}>{value}</Text>
     </View>
   );
 }
@@ -19,14 +20,34 @@ export default function StatCard({ label, value, tone = "default" }: Props) {
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: borders.default,
+    borderColor: borders.color,
     padding: spacing.lg,
   },
-  cardHighlight: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-  label: { ...type.small, color: colors.textSecondary },
-  value: { ...type.h2, color: colors.textPrimary, marginTop: spacing.xs },
-  valueHighlight: { color: colors.primaryDark },
+  cardDefault: {
+    backgroundColor: colors.surface,
+  },
+  label: {
+    ...type.small,
+    fontWeight: "700",
+    color: colors.textSecondary,
+  },
+  value: {
+    ...type.h2,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    marginTop: spacing.xs,
+  },
 });
+
+const TONE_STYLES: Record<NonNullable<Props["tone"]>, { backgroundColor: string }> = {
+  default: { backgroundColor: colors.surface },
+  highlight: { backgroundColor: colors.lime },
+  lime: { backgroundColor: colors.lime },
+  yellow: { backgroundColor: colors.yellow },
+  coral: { backgroundColor: colors.primaryLight },
+  cyan: { backgroundColor: colors.cyanLight },
+  purple: { backgroundColor: colors.purpleLight },
+  peach: { backgroundColor: colors.peachLight },
+};

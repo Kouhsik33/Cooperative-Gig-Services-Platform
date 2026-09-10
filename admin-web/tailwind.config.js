@@ -3,32 +3,98 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Kaltera", "system-ui", "-apple-system", "sans-serif"],
+        kaltera: ["Kaltera", "sans-serif"],
+      },
       colors: {
-        // Same palette as mobile-app/src/theme/tokens.ts, expressed as
-        // Tailwind theme extensions so both surfaces share one identity.
+        // 60% Dominant: Vanilla Cream
+        vanilla: {
+          DEFAULT: "#FFF6E8",
+          light: "#FFFBF5",
+          dark: "#F7E7CE",
+        },
+        canvas: "#FFF6E8",
+        surface: "#FFFFFF",
+
+        // 30% Structural Brand: Cherry Velvet
         primary: {
-          DEFAULT: "#0F6B5C",
-          dark: "#0A4F44",
-          light: "#E3F3EF",
+          DEFAULT: "#C1121F",
+          dark: "#980F19",
+          light: "#FDE8EA",
+        },
+        cherry: {
+          DEFAULT: "#C1121F",
+          dark: "#980F19",
+          light: "#FDE8EA",
+        },
+
+        // 10% Accent: Sky Powder
+        sky: {
+          DEFAULT: "#A9C6EA",
+          light: "#EBF2FA",
+          dark: "#7FA7D9",
         },
         secondary: {
-          DEFAULT: "#C97B3D",
-          dark: "#A85F27",
-          light: "#FBEEE0",
+          DEFAULT: "#A9C6EA",
+          dark: "#7FA7D9",
+          light: "#EBF2FA",
         },
-        surface: "#FFFFFF",
-        canvas: "#F7F8F6",
+
+        // 10% Accent: Golden Typography & Royal Accents
+        gold: {
+          DEFAULT: "#C59B27",
+          light: "#FFF4D2",
+          dark: "#9A7513",
+          metallic: "#D4AF37",
+        },
+
+        // Legacy compatibility aliases mapped harmoniously
+        lime: {
+          DEFAULT: "#D5E5B8",
+          light: "#F2F8E9",
+          dark: "#A3BD79",
+        },
+        yellow: {
+          DEFAULT: "#F9DCA4",
+          light: "#FFF4D2",
+          dark: "#C59B27",
+        },
+        cyan: {
+          DEFAULT: "#A9C6EA",
+          light: "#EBF2FA",
+          dark: "#7FA7D9",
+        },
+        purple: {
+          DEFAULT: "#DAC8E8",
+          light: "#F4EFF9",
+          dark: "#A48BBD",
+        },
+        peach: {
+          DEFAULT: "#FAD8C3",
+          light: "#FFF0E6",
+          dark: "#CFA085",
+        },
+
         ink: {
-          DEFAULT: "#1A2421",
-          secondary: "#5B6B65",
-          muted: "#8A9A94",
+          DEFAULT: "#1F1516",
+          secondary: "#5C4A4D",
+          muted: "#8C787B",
         },
       },
       borderRadius: {
-        card: "14px",
+        card: "18px",
+      },
+      borderWidth: {
+        "2.5": "2.5px",
       },
       boxShadow: {
-        card: "0 4px 10px -2px rgba(10,35,29,0.08)",
+        retro: "3.5px 3.5px 0px #1F1516",
+        "retro-sm": "2px 2px 0px #1F1516",
+        "retro-lg": "5px 5px 0px #1F1516",
+        card: "3.5px 3.5px 0px #1F1516",
+        gold: "3.5px 3.5px 0px #C59B27",
+        cherry: "3.5px 3.5px 0px #980F19",
       },
     },
   },

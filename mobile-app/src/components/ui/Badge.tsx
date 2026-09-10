@@ -1,23 +1,26 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors, radius, spacing, type } from "../../theme/tokens";
+import { borders, colors, radius, spacing, type } from "../../theme/tokens";
 import type { BookingStatus } from "../../api/types";
 import { Ionicons } from "@expo/vector-icons";
 import { icons, iconSize } from "../../theme/icons";
 
 interface BadgeProps {
   label: string;
-  tone?: "success" | "warning" | "error" | "info" | "neutral";
+  tone?: "success" | "warning" | "error" | "info" | "neutral" | "lime" | "yellow" | "coral";
 }
 
 const TONE_STYLES: Record<
   NonNullable<BadgeProps["tone"]>,
   { bg: string; fg: string }
 > = {
-  success: { bg: colors.successLight, fg: colors.success },
-  warning: { bg: colors.warningLight, fg: colors.warning },
-  error: { bg: colors.errorLight, fg: colors.error },
-  info: { bg: colors.infoLight, fg: colors.info },
-  neutral: { bg: colors.primaryLight, fg: colors.textSecondary },
+  success: { bg: colors.limeLight, fg: colors.textPrimary },
+  warning: { bg: colors.yellowLight, fg: colors.textPrimary },
+  error: { bg: colors.primaryLight, fg: colors.error },
+  info: { bg: colors.cyanLight, fg: colors.textPrimary },
+  neutral: { bg: colors.surface, fg: colors.textPrimary },
+  lime: { bg: colors.lime, fg: colors.textPrimary },
+  yellow: { bg: colors.yellow, fg: colors.textPrimary },
+  coral: { bg: colors.primary, fg: colors.textInverse },
 };
 
 export function Badge({ label, tone = "neutral" }: BadgeProps) {
@@ -30,13 +33,13 @@ export function Badge({ label, tone = "neutral" }: BadgeProps) {
 }
 
 const STATUS_TONE: Record<BookingStatus, BadgeProps["tone"]> = {
-  REQUESTED: "neutral",
+  REQUESTED: "yellow",
   ACCEPTED: "info",
   ASSIGNED: "info",
-  ON_THE_WAY: "info",
-  ARRIVED: "warning",
-  IN_PROGRESS: "warning",
-  COMPLETION_PENDING: "warning",
+  ON_THE_WAY: "lime",
+  ARRIVED: "lime",
+  IN_PROGRESS: "lime",
+  COMPLETION_PENDING: "yellow",
   COMPLETED: "success",
   CANCELLED: "error",
   REJECTED: "error",
@@ -51,7 +54,7 @@ export function StatusBadge({ status }: { status: BookingStatus | string }) {
 export function VerifiedBadge({ label }: { label: string }) {
   return (
     <View style={styles.verifiedRow}>
-      <Ionicons name={icons.verified} size={iconSize.xs} color={colors.success} style={styles.verifiedCheck} />
+      <Ionicons name={icons.verified} size={iconSize.xs} color={colors.textPrimary} style={styles.verifiedCheck} />
       <Text style={styles.verifiedLabel}>{label}</Text>
     </View>
   );
@@ -60,16 +63,34 @@ export function VerifiedBadge({ label }: { label: string }) {
 const styles = StyleSheet.create({
   badge: {
     borderRadius: radius.pill,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     alignSelf: "flex-start",
   },
-  label: { ...type.caption, textTransform: "capitalize" },
-  verifiedRow: { flexDirection: "row", alignItems: "center" },
-  verifiedCheck: {
-    color: colors.success,
+  label: {
+    ...type.caption,
     fontWeight: "800",
+    textTransform: "capitalize",
+    letterSpacing: 0.3,
+  },
+  verifiedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.limeLight,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 2,
+  },
+  verifiedCheck: {
     marginRight: spacing.xs / 2,
   },
-  verifiedLabel: { ...type.smallMedium, color: colors.success },
+  verifiedLabel: {
+    ...type.caption,
+    fontWeight: "800",
+    color: colors.textPrimary,
+  },
 });
