@@ -15,7 +15,7 @@ import { formatCurrency, formatDateTime } from "../../lib/format";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import NotificationBell from "../../components/NotificationBell";
 import { Card, ErrorState, RequestCard, SkeletonList, StatCard, StatusBadge, VerifiedBadge } from "../../components/ui";
-import { colors, spacing, type } from "../../theme/tokens";
+import { borders, colors, radius, shadow, spacing, type } from "../../theme/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { icons, iconSize } from "../../theme/icons";
 
@@ -191,22 +191,23 @@ export default function WorkerHomeScreen({ navigation }: Props) {
       )}
 
       <View style={styles.statRow}>
-        <StatCard label={t("workerHome.todaysJobs")} value={String(todaysBookings.length)} />
+        <StatCard label={t("workerHome.todaysJobs")} value={String(todaysBookings.length)} tone="yellow" />
         <StatCard
           label={t("workerHome.todaysEarnings")}
           value={formatCurrency(todaysEarnings, i18n.language)}
-          tone="highlight"
+          tone="lime"
         />
       </View>
       <View style={styles.statRow}>
-        <StatCard label={t("workerHome.upcomingJobs")} value={String(upcomingCount)} />
+        <StatCard label={t("workerHome.upcomingJobs")} value={String(upcomingCount)} tone="cyan" />
         <StatCard
           label={t("workerHome.yourRating")}
           value={ratingAvg && ratingAvg > 0 ? ratingAvg.toFixed(1) : t("workerHome.notRatedYet")}
+          tone="purple"
         />
       </View>
       <View style={styles.statRow}>
-        <StatCard label={t("workerHome.welfareToday")} value={formatCurrency(welfareToday, i18n.language)} />
+        <StatCard label={t("workerHome.welfareToday")} value={formatCurrency(welfareToday, i18n.language)} tone="peach" />
       </View>
 
       <View style={styles.sectionHeader}>
@@ -236,26 +237,35 @@ export default function WorkerHomeScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  ctaRow: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 12 },
-  container: { padding: spacing.xl, paddingBottom: spacing.xxxl },
+  ctaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 12 },
+  container: { padding: spacing.xl, paddingBottom: spacing.xxxl + 40, backgroundColor: colors.background },
   headerRow: { flexDirection: "row", alignItems: "flex-start" },
-  greeting: { ...type.h1, color: colors.textPrimary, marginBottom: spacing.sm },
-  switcher: { marginVertical: spacing.lg, alignItems: "flex-start" },
-  availabilityCard: { marginBottom: spacing.lg },
+  greeting: { ...type.h1, fontWeight: "900", color: colors.textPrimary, marginBottom: spacing.sm },
+  switcher: { marginVertical: spacing.md, alignItems: "flex-start" },
+  availabilityCard: {
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surface,
+    borderWidth: borders.default,
+    borderColor: borders.color,
+    borderRadius: radius.lg,
+    ...shadow.sm,
+  },
   activeJobCard: {
     marginBottom: spacing.lg,
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
-    borderWidth: 1,
+    backgroundColor: colors.lime,
+    borderColor: borders.color,
+    borderWidth: borders.default,
+    borderRadius: radius.xl,
+    ...shadow.md,
   },
   activeJobHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  activeJobLabel: { ...type.caption, color: colors.primaryDark },
-  activeJobService: { ...type.h3, color: colors.textPrimary, marginTop: spacing.xs },
-  activeJobMeta: { ...type.small, color: colors.textSecondary, marginTop: 2 },
-  activeJobCta: { ...type.smallMedium, color: colors.primary, marginTop: spacing.md },
+  activeJobLabel: { ...type.caption, fontWeight: "800", color: colors.textPrimary, textTransform: "uppercase" },
+  activeJobService: { ...type.h2, fontWeight: "900", color: colors.textPrimary, marginTop: spacing.xs },
+  activeJobMeta: { ...type.small, fontWeight: "600", color: colors.textPrimary, marginTop: 2 },
+  activeJobCta: { ...type.smallMedium, fontWeight: "800", color: colors.textPrimary, textDecorationLine: "underline", marginTop: spacing.md },
   availabilityRow: { flexDirection: "row", alignItems: "center" },
-  availabilityLabel: { ...type.bodyMedium, color: colors.textPrimary },
-  availabilitySub: { ...type.caption, color: colors.textMuted, marginTop: 2 },
+  availabilityLabel: { ...type.bodyMedium, fontWeight: "800", color: colors.textPrimary },
+  availabilitySub: { ...type.caption, fontWeight: "600", color: colors.textSecondary, marginTop: 2 },
   statRow: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.md },
   sectionHeader: {
     flexDirection: "row",
@@ -264,7 +274,17 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.md,
   },
-  sectionTitle: { ...type.h3, color: colors.textPrimary },
-  viewAll: { ...type.smallMedium, color: colors.primary },
-  emptyText: { ...type.body, color: colors.textSecondary },
+  sectionTitle: { ...type.h3, fontWeight: "900", color: colors.textPrimary },
+  viewAll: {
+    ...type.caption,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    backgroundColor: colors.yellow,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+  },
+  emptyText: { ...type.body, fontWeight: "600", color: colors.textSecondary },
 });

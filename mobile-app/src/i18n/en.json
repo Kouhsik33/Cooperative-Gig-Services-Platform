@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Cooperative Gig Services",
+    "appName": "Sahakarya",
     "retry": "Try again",
     "loadFailed": "Something went wrong. Please try again.",
     "bookingLoadFailed": "Could not load this booking.",
@@ -307,7 +307,7 @@
     "workerEnRoute": "Your professional is on the way"
   },
   "home": {
-    "greeting": "Hi {{name}} 👋",
+    "greeting": "Hi {{name}}",
     "prompt": "What do you need help with?",
     "serviceLocation": "Service location",
     "change": "Change",

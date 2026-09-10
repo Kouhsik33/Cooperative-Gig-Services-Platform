@@ -307,7 +307,7 @@
     "workerEnRoute": "आपका पेशेवर रास्ते में है"
   },
   "home": {
-    "greeting": "नमस्ते {{name}} 👋",
+    "greeting": "नमस्ते {{name}}",
     "prompt": "आपको किसमें मदद चाहिए?",
     "serviceLocation": "सेवा स्थान",
     "change": "बदलें",

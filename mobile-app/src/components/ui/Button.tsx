@@ -1,23 +1,23 @@
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
   Text,
   TouchableOpacity,
   ViewStyle,
+  TextStyle,
 } from "react-native";
-import { colors, layout, radius, spacing, type } from "../../theme/tokens";
+import { borders, colors, layout, radius, shadow, spacing, type } from "../../theme/tokens";
 
 interface Props {
   label: string;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "outline" | "danger";
+  variant?: "primary" | "secondary" | "lime" | "outline" | "danger";
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
 }
 
-// One primary-action button primitive (master prompt §42 rule 1 / §9)
-// with the full default/disabled/loading state set built in.
 export default function Button({
   label,
   onPress,
@@ -26,23 +26,31 @@ export default function Button({
   disabled = false,
   style,
 }: Props) {
+  const [pressed, setPressed] = useState(false);
   const isDisabled = disabled || loading;
+
   return (
     <TouchableOpacity
-      style={[styles.base, VARIANT_STYLES[variant], isDisabled && styles.disabled, style]}
+      style={[
+        styles.base,
+        VARIANT_STYLES[variant],
+        shadow.sm,
+        pressed && styles.pressed,
+        isDisabled && styles.disabled,
+        style,
+      ]}
       onPress={onPress}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
       disabled={isDisabled}
-      activeOpacity={0.85}
+      activeOpacity={0.9}
     >
       {loading ? (
-        <ActivityIndicator color={variant === "outline" ? colors.primary : colors.textInverse} />
+        <ActivityIndicator color={variant === "outline" ? colors.ink : colors.textPrimary} />
       ) : (
         <Text
           style={[styles.label, TEXT_STYLES[variant]]}
           numberOfLines={2}
-          // Hindi/Marathi labels run up to ~2x the English width; allowing
-          // two centred lines is what keeps a CTA readable instead of
-          // truncating it mid-word.
           adjustsFontSizeToFit
           minimumFontScale={0.85}
         >
@@ -56,28 +64,42 @@ export default function Button({
 const styles = StyleSheet.create({
   base: {
     borderRadius: radius.md,
+    borderWidth: borders.default,
+    borderColor: borders.color,
     paddingVertical: spacing.md + 2,
-    paddingHorizontal: spacing.md,
-    // Accessibility floor (WCAG 2.5.5 / iOS HIG) rather than a look.
+    paddingHorizontal: spacing.lg,
     minHeight: layout.minTouchTarget,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
   },
-  disabled: { opacity: 0.5 },
-  label: { ...type.bodyMedium, textAlign: "center", flexShrink: 1 },
+  pressed: {
+    transform: [{ translateX: 1.5 }, { translateY: 1.5 }],
+    shadowOffset: { width: 1, height: 1 },
+  },
+  disabled: {
+    opacity: 0.55,
+  },
+  label: {
+    ...type.bodyMedium,
+    fontWeight: "800",
+    textAlign: "center",
+    flexShrink: 1,
+  },
 });
 
 const VARIANT_STYLES: Record<NonNullable<Props["variant"]>, ViewStyle> = {
   primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.secondary },
-  outline: { backgroundColor: "transparent", borderWidth: 1.5, borderColor: colors.primary },
+  secondary: { backgroundColor: colors.yellow },
+  lime: { backgroundColor: colors.lime },
+  outline: { backgroundColor: colors.surface },
   danger: { backgroundColor: colors.error },
 };
 
-const TEXT_STYLES: Record<NonNullable<Props["variant"]>, { color: string }> = {
+const TEXT_STYLES: Record<NonNullable<Props["variant"]>, TextStyle> = {
   primary: { color: colors.textInverse },
-  secondary: { color: colors.textInverse },
-  outline: { color: colors.primary },
+  secondary: { color: colors.textPrimary },
+  lime: { color: colors.textPrimary },
+  outline: { color: colors.textPrimary },
   danger: { color: colors.textInverse },
 };

@@ -1,23 +1,16 @@
+import React from "react";
+import { View, StyleSheet } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, type } from "../theme/tokens";
+import { borders, colors, radius, shadow, type } from "../theme/tokens";
 
 export interface TabDef {
-  /** Route name — also what useTabSwitch(name) / navigation.navigate(name) target. */
   key: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   Screen: React.ComponentType;
 }
 
-// A real bottom-tab navigator (was a hand-rolled shell that wasn't a
-// navigator — which broke touch handling on pushed screens, popToTop,
-// and cross-tab navigation). @react-navigation/bottom-tabs owns the
-// tab-bar layout + safe-area + touch handling, and keeps the bar
-// working over any screen pushed onto a tab's stack.
-//
-// One module-level navigator instance is fine: the customer and worker
-// tab sets are role-routed and never mounted at the same time.
 const Tab = createBottomTabNavigator();
 
 export default function BottomTabs({ tabs }: { tabs: TabDef[] }) {
@@ -29,13 +22,16 @@ export default function BottomTabs({ tabs }: { tabs: TabDef[] }) {
           headerShown: false,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
-          tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
-          },
-          tabBarLabelStyle: { ...type.caption },
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name={def?.icon ?? "ellipse"} size={size ?? 22} color={color} />
+          tabBarStyle: styles.tabBar,
+          tabBarLabelStyle: styles.label,
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.iconWrap, focused && styles.iconActiveWrap]}>
+              <Ionicons
+                name={def?.icon ?? "ellipse"}
+                size={20}
+                color={focused ? colors.textInverse : colors.textMuted}
+              />
+            </View>
           ),
         };
       }}
@@ -51,3 +47,52 @@ export default function BottomTabs({ tabs }: { tabs: TabDef[] }) {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: colors.surface,
+    borderTopWidth: borders.default,
+    borderTopColor: borders.color,
+    borderLeftWidth: borders.default,
+    borderRightWidth: borders.default,
+    borderLeftColor: borders.color,
+    borderRightColor: borders.color,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: 68,
+    paddingTop: 6,
+    paddingBottom: 8,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    // Retro upward hard offset shadow
+    shadowColor: borders.color,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 8,
+  },
+  label: {
+    ...type.caption,
+    fontWeight: "800",
+    fontSize: 10,
+    marginTop: 2,
+  },
+  iconWrap: {
+    width: 36,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+  },
+  iconActiveWrap: {
+    backgroundColor: colors.primary,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    shadowColor: borders.color,
+    shadowOffset: { width: 1.5, height: 1.5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+  },
+});

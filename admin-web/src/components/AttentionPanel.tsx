@@ -1,13 +1,6 @@
 import { Link } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
 
-// "Where are the problems?" — the one question an operations dashboard must
-// answer before any of the others (master prompt §10).
-//
-// Renders nothing at all when nothing is wrong. A permanently-visible
-// "alerts" panel that usually says "0 issues" trains the operator to stop
-// looking at it, which is precisely when it matters most.
-
 export interface AttentionItem {
   key: string;
   count: number;
@@ -22,47 +15,37 @@ export default function AttentionPanel({ items }: { items: AttentionItem[] }) {
   const live = items.filter((i) => i.count > 0);
   if (live.length === 0) {
     return (
-      <div className="rounded-card border border-emerald-200 bg-emerald-50 p-4">
-        <p className="flex items-center gap-2 text-sm font-medium text-emerald-900">
-          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-          Nothing needs attention — no unserved bookings, no pending verifications.
+      <div className="rounded-card border-2 border-ink bg-lime-light p-5 shadow-card">
+        <p className="flex items-center gap-2 text-sm font-black text-ink">
+          <CheckCircle2 className="h-5 w-5 text-ink" aria-hidden="true" />
+          All clear! No unserved bookings, no pending verifications.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {live.map((item) => (
         <div
           key={item.key}
-          className={`flex flex-wrap items-center gap-3 rounded-card border p-4 ${
-            item.tone === "critical"
-              ? "border-red-300 bg-red-50"
-              : "border-amber-300 bg-amber-50"
+          className={`flex flex-wrap items-center gap-4 rounded-card border-2 border-ink p-5 shadow-card ${
+            item.tone === "critical" ? "bg-primary-light" : "bg-yellow-light"
           }`}
         >
-          <span
-            className={`flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-sm font-bold text-white ${
-              item.tone === "critical" ? "bg-red-600" : "bg-amber-600"
-            }`}
-          >
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink bg-surface text-base font-black text-ink shadow-retro-sm">
             {item.count}
           </span>
           <div className="flex-1">
-            <p
-              className={`text-sm font-semibold ${
-                item.tone === "critical" ? "text-red-900" : "text-amber-900"
-              }`}
-            >
+            <p className="text-sm font-black text-ink">
               {item.label}
             </p>
-            <p className="text-xs text-ink-secondary">{item.detail}</p>
+            <p className="text-xs font-semibold text-ink/70">{item.detail}</p>
           </div>
           <Link
             to={item.to}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white ${
-              item.tone === "critical" ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700"
+            className={`rounded-xl border-2 border-ink px-4 py-2 text-xs font-black text-ink shadow-retro-sm transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 ${
+              item.tone === "critical" ? "bg-primary hover:bg-primary-dark" : "bg-yellow hover:bg-yellow-dark"
             }`}
           >
             {item.action}

@@ -307,7 +307,7 @@
     "workerEnRoute": "మీ నిపుణుడు దారిలో ఉన్నారు"
   },
   "home": {
-    "greeting": "నమస్తే {{name}} 👋",
+    "greeting": "నమస్తే {{name}}",
     "prompt": "మీకు దేనితో సహాయం కావాలి?",
     "serviceLocation": "సేవా స్థానం",
     "change": "మార్చండి",

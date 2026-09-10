@@ -34,11 +34,22 @@ export default function DashboardHome() {
   });
 
   return (
-    <div>
-      <h1 className="mb-1 text-2xl font-semibold text-ink">Overview</h1>
-      <p className="mb-6 text-sm text-ink-muted">
-        {user?.name} · Federation Admin
-      </p>
+    <div className="font-sans">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-black uppercase tracking-tight text-ink">
+              Sahakarya
+            </h1>
+            <span className="rounded-full border-2 border-ink bg-gold-light px-2.5 py-0.5 text-xs font-black text-gold-dark shadow-retro-sm">
+              Live Operations
+            </span>
+          </div>
+          <p className="mt-1 text-xs font-bold text-ink/60">
+            {user?.name} · Federation Admin Command Center
+          </p>
+        </div>
+      </div>
 
       {isLoading || !data ? (
         <div className="space-y-4" aria-busy="true">
@@ -53,7 +64,7 @@ export default function DashboardHome() {
         <>
           {/* 1. Where are the problems? */}
           <section className="mb-6">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-muted">
+            <h2 className="mb-2 text-xs font-black uppercase tracking-wider text-ink/70">
               Needs attention
             </h2>
             <AttentionPanel items={attentionItems(data)} />
@@ -61,28 +72,30 @@ export default function DashboardHome() {
 
           {/* 2. What is happening now? */}
           <section className="mb-6">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-muted">
+            <h2 className="mb-2 text-xs font-black uppercase tracking-wider text-ink/70">
               Right now
             </h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiCard label="Active bookings" value={data.activeBookings} />
+              <KpiCard label="Active bookings" value={data.activeBookings} tone="coral" />
               <KpiCard
                 label="Workers online"
                 value={dispatch?.workersAvailable ?? "—"}
                 sublabel={dispatch ? `${dispatch.workersBusy} on a job` : undefined}
+                tone="cyan"
               />
               <KpiCard
                 label="Avg. assignment time"
                 value={dispatch?.avgAssignmentSeconds != null ? `${dispatch.avgAssignmentSeconds}s` : "—"}
                 sublabel="broadcast to accepted"
+                tone="yellow"
               />
-              <KpiCard label="Finding a professional" value={dispatch?.stillSearching ?? "—"} />
+              <KpiCard label="Finding a professional" value={dispatch?.stillSearching ?? "—"} tone="surface" />
             </div>
           </section>
 
           {/* 3. How well is it going? */}
           <section className="mb-6">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-muted">
+            <h2 className="mb-2 text-xs font-black uppercase tracking-wider text-ink/70">
               Service quality
             </h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -90,45 +103,55 @@ export default function DashboardHome() {
                 label="Completion rate"
                 value={data.completionRatePercent != null ? `${data.completionRatePercent}%` : "—"}
                 sublabel="completed vs cancelled"
+                tone="cyan"
               />
               <KpiCard
                 label="Customer rating"
                 value={data.avgCustomerRating != null ? String(data.avgCustomerRating) : "—"}
                 icon={Star}
                 sublabel={`${data.ratingCount} ratings`}
+                tone="yellow"
               />
-              <KpiCard label="Registered workers" value={data.totalWorkers} />
+              <KpiCard label="Registered workers" value={data.totalWorkers} tone="surface" />
               <KpiCard
                 label="Welfare fund"
                 value={`₹${data.welfareFundBalance.toFixed(2)}`}
                 sublabel="available balance"
+                tone="coral"
               />
             </div>
           </section>
         </>
       )}
 
-      <div className="mt-6 rounded-card border-2 border-primary bg-primary-light p-6 shadow-card">
-        <p className="text-sm font-medium text-primary-dark">Fairness metric</p>
-        <div className="mt-3 flex flex-wrap items-end gap-8">
+      <div className="mt-6 rounded-card border-2 border-ink bg-vanilla p-6 shadow-card">
+        <div className="flex items-center gap-2">
+          <span className="rounded-full border-2 border-ink bg-primary text-white px-3.5 py-1 text-xs font-black uppercase tracking-wider shadow-retro-sm">
+            Fairness Guarantee
+          </span>
+          <span className="rounded-full border-2 border-ink bg-gold-light text-gold-dark px-3 py-1 text-xs font-black uppercase tracking-wider shadow-retro-sm">
+            Sahakarya Standard
+          </span>
+        </div>
+        <div className="mt-4 flex flex-wrap items-end gap-8">
           <div>
-            <p className="text-4xl font-bold text-primary-dark">
+            <p className="text-5xl font-black tracking-tight text-primary">
               {fairness ? `${fairness.avgWorkerSharePercent.toFixed(1)}%` : "—"}
             </p>
-            <p className="text-sm text-ink-secondary">avg. worker share, all completed jobs</p>
+            <p className="mt-1 text-sm font-black text-ink/80">Average worker share, all completed jobs</p>
           </div>
-          <div className="flex gap-6 text-sm text-ink-secondary">
-            <div>
-              <p className="font-semibold text-ink">{fairness?.completedBookings ?? "—"}</p>
-              <p>completed bookings</p>
+          <div className="flex gap-4 text-sm text-ink/80">
+            <div className="rounded-xl border-2 border-ink bg-surface p-3 shadow-retro-sm">
+              <p className="font-black text-ink text-lg">{fairness?.completedBookings ?? "—"}</p>
+              <p className="text-xs font-bold text-ink/60">Completed bookings</p>
             </div>
-            <div>
-              <p className="font-semibold text-ink">10%</p>
-              <p>federation fee (of base price)</p>
+            <div className="rounded-xl border-2 border-ink bg-surface p-3 shadow-retro-sm">
+              <p className="font-black text-primary text-lg">10%</p>
+              <p className="text-xs font-bold text-ink/60">Federation fee</p>
             </div>
-            <div>
-              <p className="font-semibold text-ink">3%</p>
-              <p>welfare contribution (of base price)</p>
+            <div className="rounded-xl border-2 border-ink bg-surface p-3 shadow-retro-sm">
+              <p className="font-black text-gold-dark text-lg">3%</p>
+              <p className="text-xs font-bold text-ink/60">Welfare contribution</p>
             </div>
           </div>
         </div>

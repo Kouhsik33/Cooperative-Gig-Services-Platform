@@ -17,7 +17,7 @@ import { iconForCategory } from "../../lib/categoryIcons";
 import { useAuth } from "../../store/AuthContext";
 import { useServiceLocation } from "../../store/LocationContext";
 import { Card, Chip, ErrorState, ServiceCard, SkeletonList, StatusBadge } from "../../components/ui";
-import { colors, spacing, type } from "../../theme/tokens";
+import { borders, colors, radius, shadow, spacing, type } from "../../theme/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { icons, iconSize } from "../../theme/icons";
 
@@ -133,12 +133,22 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
       numColumns={1}
       ListHeaderComponent={
         <View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandName}>SAHAKARYA</Text>
+            <View style={styles.brandPill}>
+              <Text style={styles.brandPillText}>COOPERATIVE</Text>
+            </View>
+          </View>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.greeting}>{t("home.greeting", { name: user?.name?.split(" ")[0] ?? "" })}</Text>
               <Text style={styles.subGreeting}>{t("home.prompt")}</Text>
             </View>
             <NotificationBell onPress={() => navigation.navigate("Notifications")} />
+          </View>
+
+          <View style={styles.switcher}>
+            <LanguageSwitcher persist />
           </View>
 
           <TouchableOpacity
@@ -182,10 +192,6 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
             </TouchableOpacity>
           )}
 
-          <View style={styles.switcher}>
-            <LanguageSwitcher persist />
-          </View>
-
           <TextInput
             style={styles.search}
             placeholder={t("home.searchPlaceholder")}
@@ -211,7 +217,8 @@ export default function ServiceCatalogScreen({ navigation }: Props) {
               {categories.map((c) => (
                 <Chip
                   key={c}
-                  label={`${iconForCategory(c)} ${c}`}
+                  label={c}
+                  icon={iconForCategory(c)}
                   selected={category === c}
                   onPress={() => setCategory(c)}
                 />
@@ -299,82 +306,143 @@ function ImpactStat({ value, label }: { value: string; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  ctaRow: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 12 },
-  list: { padding: spacing.xl, paddingBottom: spacing.xxxl },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginBottom: spacing.xs },
+  brandName: { ...type.caption, fontWeight: "900", color: colors.primary, letterSpacing: 1.2 },
+  brandPill: {
+    backgroundColor: colors.goldLight,
+    borderWidth: borders.thin,
+    borderColor: colors.gold,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1,
+  },
+  brandPillText: { ...type.caption, fontSize: 9, fontWeight: "800", color: colors.goldDark },
+  ctaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 12 },
+  list: { padding: spacing.xl, paddingBottom: spacing.xxxl + 40, backgroundColor: colors.background },
   headerRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: spacing.md },
-  greeting: { ...type.h1, color: colors.textPrimary },
-  subGreeting: { ...type.body, color: colors.textSecondary, marginTop: 2 },
+  greeting: { ...type.h1, fontWeight: "900", color: colors.textPrimary },
+  subGreeting: { ...type.body, fontWeight: "600", color: colors.textSecondary, marginTop: 2 },
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
+    borderWidth: borders.default,
+    borderColor: borders.color,
+    borderRadius: radius.lg,
     padding: spacing.md,
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
+    ...shadow.sm,
   },
   locationIcon: { marginRight: spacing.sm },
-  locationLabel: { ...type.caption, color: colors.textMuted },
-  locationValue: { ...type.smallMedium, color: colors.textPrimary, marginTop: 1 },
-  locationChange: { ...type.smallMedium, color: colors.primary },
-  switcher: { marginVertical: spacing.lg, alignItems: "flex-start" },
+  locationLabel: { ...type.caption, fontWeight: "700", color: colors.textSecondary, textTransform: "uppercase" },
+  locationValue: { ...type.smallMedium, fontWeight: "800", color: colors.textPrimary, marginTop: 1 },
+  locationChange: {
+    ...type.caption,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    backgroundColor: colors.skyLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+  },
+  switcher: { marginVertical: spacing.md, alignItems: "flex-start" },
   activeCard: {
     backgroundColor: colors.primaryLight,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: radius.xl,
+    borderWidth: borders.default,
     borderColor: colors.primary,
     padding: spacing.lg,
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
+    ...shadow.md,
   },
   activeHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  activeLabel: { ...type.caption, color: colors.primaryDark },
-  activeService: { ...type.h3, color: colors.textPrimary, marginTop: spacing.xs },
-  activeMeta: { ...type.small, color: colors.textSecondary, marginTop: 2 },
-  activeCta: { ...type.smallMedium, color: colors.primary, marginTop: spacing.md },
+  activeLabel: {
+    ...type.caption,
+    fontWeight: "800",
+    color: colors.primary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  activeService: { ...type.h2, fontWeight: "900", color: colors.textPrimary, marginTop: spacing.xs },
+  activeMeta: { ...type.small, fontWeight: "600", color: colors.textPrimary, marginTop: 2 },
+  activeCta: {
+    ...type.smallMedium,
+    fontWeight: "800",
+    color: colors.primary,
+    textDecorationLine: "underline",
+  },
   search: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
+    borderWidth: borders.default,
+    borderColor: borders.color,
+    borderRadius: radius.pill,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     color: colors.textPrimary,
-    ...type.body,
+    ...type.bodyMedium,
+    fontWeight: "600",
+    ...shadow.sm,
   },
   emergencyCard: {
-    backgroundColor: colors.errorLight,
-    borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.lg,
     padding: spacing.lg,
-    marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.error,
+    marginBottom: spacing.lg,
+    borderWidth: borders.default,
+    borderColor: borders.color,
+    ...shadow.sm,
   },
-  emergencyTitle: { ...type.h3, color: colors.error },
-  emergencyBody: { ...type.small, color: colors.error, marginTop: spacing.xs },
+  emergencyTitle: { ...type.h3, fontWeight: "900", color: colors.error },
+  emergencyBody: { ...type.small, fontWeight: "600", color: colors.textPrimary, marginTop: spacing.xs },
   categoryRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: spacing.md },
-  sectionTitle: { ...type.h3, color: colors.textPrimary, marginBottom: spacing.md, marginTop: spacing.sm },
-  noCoverage: { ...type.caption, color: colors.warning, marginTop: -spacing.sm, marginBottom: spacing.md },
+  sectionTitle: {
+    ...type.h3,
+    fontWeight: "900",
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+    marginTop: spacing.sm,
+  },
+  noCoverage: { ...type.caption, fontWeight: "700", color: colors.warning, marginTop: -spacing.sm, marginBottom: spacing.md },
   whyGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   whyCard: {
     width: "48%",
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.surface,
+    borderWidth: borders.default,
+    borderColor: borders.color,
+    borderRadius: radius.lg,
     marginBottom: spacing.md,
+    ...shadow.sm,
   },
   whyIcon: { marginBottom: spacing.xs },
-  whyTitle: { ...type.smallMedium, color: colors.primaryDark },
+  whyTitle: { ...type.smallMedium, fontWeight: "800", color: colors.textPrimary },
   whyBody: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
-  impactCard: { marginTop: spacing.md, backgroundColor: colors.primaryDark, borderWidth: 0 },
-  impactTitle: { ...type.smallMedium, color: colors.primaryLight, marginBottom: spacing.md },
+  impactCard: {
+    marginTop: spacing.md,
+    backgroundColor: colors.goldLight,
+    borderRadius: radius.xl,
+    borderWidth: borders.default,
+    borderColor: borders.color,
+    ...shadow.md,
+  },
+  impactTitle: {
+    ...type.smallMedium,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+    textAlign: "center",
+  },
   impactRow: { flexDirection: "row", justifyContent: "space-between" },
   impactFooter: {
     ...type.caption,
-    color: colors.primaryLight,
+    fontWeight: "700",
+    color: colors.textSecondary,
     marginTop: spacing.lg,
     textAlign: "center",
   },
   impactStat: { alignItems: "center", flex: 1 },
-  impactValue: { ...type.h2, color: colors.textInverse },
-  impactLabel: { ...type.caption, color: colors.primaryLight, marginTop: 2, textAlign: "center" },
+  impactValue: { ...type.h2, fontWeight: "900", color: colors.textPrimary },
+  impactLabel: { ...type.caption, fontWeight: "700", color: colors.textSecondary, marginTop: 2, textAlign: "center" },
 });

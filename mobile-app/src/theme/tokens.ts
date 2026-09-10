@@ -1,73 +1,102 @@
-// Centralized design tokens (master build prompt §37). Every screen and
-// component should read colors/spacing/radius/type/shadows from here —
-// never hardcode a hex value or magic number in a StyleSheet again.
-//
-// Palette direction: deep cooperative teal (trust, institution) + warm
-// terracotta accent (human warmth) + warm-neutral surfaces, applied on
-// a 60/30/10 basis (neutral / primary / accent+semantic).
+// Centralized design tokens (Sahakarya 60|30|10 Indian Color Palette System)
+// 60% Vanilla Cream (#FFF6E8) — light, warm, soothing canvas and clean surfaces
+// 30% Cherry Velvet (#C1121F) — rich royal cherry brand structure, buttons, headers
+// 10% Sky Powder (#A9C6EA) & Golden Typography (#C59B27 / #D4AF37) — luxury accents & highlights
 
 export const colors = {
-  primary: "#0F6B5C",
-  primaryDark: "#0A4F44",
-  primaryLight: "#E3F3EF",
+  // 30% Structural Brand: Cherry Velvet
+  primary: "#C1121F",
+  primaryDark: "#980F19",
+  primaryLight: "#FDE8EA",
 
-  secondary: "#C97B3D",
-  secondaryDark: "#A85F27",
-  secondaryLight: "#FBEEE0",
+  // 10% Accent: Sky Powder
+  secondary: "#A9C6EA",
+  secondaryDark: "#7FA7D9",
+  secondaryLight: "#EBF2FA",
+  sky: "#A9C6EA",
+  skyLight: "#EBF2FA",
+  skyDark: "#7FA7D9",
 
-  background: "#F7F8F6",
+  // 60% Dominant: Vanilla Cream
+  background: "#FFF6E8",
+  vanilla: "#FFF6E8",
+  vanillaLight: "#FFFBF5",
   surface: "#FFFFFF",
-  surfaceElevated: "#FFFFFF",
+  surfaceElevated: "#FFFBF5",
 
-  textPrimary: "#1A2421",
-  textSecondary: "#5B6B65",
-  textMuted: "#8A9A94",
+  // 10% Accent: Golden Typography Style & Royal Trim
+  gold: "#C59B27",
+  goldLight: "#FFF4D2",
+  goldDark: "#9A7513",
+  goldMetallic: "#D4AF37",
+
+  // Harmonious auxiliary tones
+  lime: "#D5E5B8",
+  limeLight: "#F2F8E9",
+  limeDark: "#A3BD79",
+
+  yellow: "#F9DCA4",
+  yellowLight: "#FFF4D2",
+  yellowDark: "#C59B27",
+
+  cyan: "#A9C6EA",
+  cyanLight: "#EBF2FA",
+  cyanDark: "#7FA7D9",
+
+  purple: "#DAC8E8",
+  purpleLight: "#F4EFF9",
+  purpleDark: "#A48BBD",
+
+  peach: "#FAD8C3",
+  peachLight: "#FFF0E6",
+  peachDark: "#CFA085",
+
+  // Ink & deep borders
+  textPrimary: "#1F1516",
+  textSecondary: "#5C4A4D",
+  textMuted: "#8C787B",
   textInverse: "#FFFFFF",
 
-  success: "#1E8E5A",
-  successLight: "#E5F5EC",
-  warning: "#B7791F",
-  warningLight: "#FBF0DA",
-  error: "#D64545",
-  errorLight: "#FBEAEA",
-  info: "#2F6FB0",
-  infoLight: "#E8F1FA",
+  success: "#15803D",
+  successLight: "#F0FDF4",
+  warning: "#B45309",
+  warningLight: "#FFFBEB",
+  error: "#C1121F",
+  errorLight: "#FDE8EA",
+  info: "#2563EB",
+  infoLight: "#EFF6FF",
 
-  border: "#E4E7E4",
-  borderStrong: "#CBD3CE",
+  border: "#1F1516",
+  borderStrong: "#1F1516",
+  ink: "#1F1516",
 
-  gold: "#D9A404",
+  overlayOnDark: "rgba(255, 255, 255, 0.2)",
+  skeleton: "#F2E8D8",
+  skeletonHighlight: "#FAF2E6",
 
-  // Translucent white for overlays on a saturated background (e.g. the
-  // emergency hero card), kept here so no screen invents its own rgba().
-  overlayOnDark: "rgba(255, 255, 255, 0.15)",
-  // Skeleton placeholder fill — a neutral tint of the border colour, so
-  // loading blocks read as "content pending", not as a disabled control.
-  skeleton: "#E9ECE9",
-  skeletonHighlight: "#F3F5F2",
-
-  // --- Semantic aliases -------------------------------------------------
-  // Named by ROLE rather than by hue, so a component says what it means
-  // ("text on top of a primary surface") instead of restating the palette.
-  // Re-theming then only touches the values above.
+  // Semantic aliases
   primaryForeground: "#FFFFFF",
-  accent: "#C97B3D",
-  accentForeground: "#FFFFFF",
-  onPrimarySurface: "#0A4F44",
-  shadowTint: "#0A231D",
+  accent: "#C59B27",
+  accentForeground: "#1F1516",
+  onPrimarySurface: "#FFFFFF",
+  shadowTint: "#1F1516",
 } as const;
 
-// Deterministic avatar-placeholder palette (master prompt §44). These are
-// the theme's own hues rather than seven hand-copied hex literals, so
-// re-theming the app re-themes the avatars with it.
+export const borders = {
+  thin: 1.5,
+  default: 2.2,
+  thick: 3,
+  color: "#1F1516",
+} as const;
+
 export const avatarPalette = [
   colors.primary,
+  colors.sky,
+  colors.gold,
+  colors.peach,
+  colors.purple,
+  colors.lime,
   colors.secondary,
-  colors.info,
-  colors.secondaryDark,
-  colors.textSecondary,
-  colors.warning,
-  colors.success,
 ] as const;
 
 export const spacing = {
@@ -82,60 +111,55 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
+  sm: 8,
+  md: 14,
+  lg: 18,
+  xl: 24,
   pill: 999,
 } as const;
 
-// Layout invariants that are accessibility requirements, not taste.
 export const layout = {
-  /** WCAG 2.5.5 / iOS HIG minimum tappable edge. Any bare touchable must
-   *  reach this, via size or hitSlop. */
   minTouchTarget: 44,
-  /** Space reserved under a sticky CTA bar so content can scroll clear. */
   stickyBarClearance: 96,
 } as const;
 
-// Golden-ratio-inspired type scale.
 export const type = {
-  display: { fontSize: 34, lineHeight: 40, fontWeight: "700" as const },
-  h1: { fontSize: 26, lineHeight: 32, fontWeight: "700" as const },
-  h2: { fontSize: 20, lineHeight: 26, fontWeight: "700" as const },
-  h3: { fontSize: 17, lineHeight: 22, fontWeight: "600" as const },
-  body: { fontSize: 15, lineHeight: 21, fontWeight: "400" as const },
-  bodyMedium: { fontSize: 15, lineHeight: 21, fontWeight: "600" as const },
-  small: { fontSize: 13, lineHeight: 18, fontWeight: "400" as const },
-  smallMedium: { fontSize: 13, lineHeight: 18, fontWeight: "600" as const },
-  caption: { fontSize: 11, lineHeight: 15, fontWeight: "500" as const },
-  /** Uppercase micro-label for section eyebrows and metadata rows. */
-  label: { fontSize: 11, lineHeight: 14, fontWeight: "700" as const, letterSpacing: 0.6 },
+  display: { fontFamily: "Kaltera", fontSize: 34, lineHeight: 40 },
+  h1: { fontFamily: "Kaltera", fontSize: 26, lineHeight: 32 },
+  h2: { fontFamily: "Kaltera", fontSize: 20, lineHeight: 26 },
+  h3: { fontFamily: "Kaltera", fontSize: 17, lineHeight: 22 },
+  body: { fontFamily: "Kaltera", fontSize: 15, lineHeight: 21 },
+  bodyMedium: { fontFamily: "Kaltera", fontSize: 15, lineHeight: 21 },
+  small: { fontFamily: "Kaltera", fontSize: 13, lineHeight: 18 },
+  smallMedium: { fontFamily: "Kaltera", fontSize: 13, lineHeight: 18 },
+  caption: { fontFamily: "Kaltera", fontSize: 11, lineHeight: 15 },
+  label: { fontFamily: "Kaltera", fontSize: 11, lineHeight: 14, letterSpacing: 0.6 },
 } as const;
 
+// Hard Neobrutalist Offset Shadows with ZERO blur
 export const shadow = {
   sm: {
-    shadowColor: colors.shadowTint,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  md: {
-    shadowColor: colors.shadowTint,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowColor: "#1F1516",
+    shadowOffset: { width: 2.5, height: 2.5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
     elevation: 3,
   },
+  md: {
+    shadowColor: "#1F1516",
+    shadowOffset: { width: 3.5, height: 3.5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 5,
+  },
   lg: {
-    shadowColor: colors.shadowTint,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 6,
+    shadowColor: "#1F1516",
+    shadowOffset: { width: 5, height: 5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 8,
   },
 } as const;
 
-export const theme = { colors, spacing, radius, type, shadow, avatarPalette, layout };
+export const theme = { colors, borders, spacing, radius, type, shadow, avatarPalette, layout };
 export default theme;

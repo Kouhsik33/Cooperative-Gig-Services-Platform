@@ -2,18 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Kaltera';
+  src: url('/fonts/Kaltera-Regular.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  /* Mirrors tailwind.config.js's palette — used where a raw value is
-     cleaner than a utility class, e.g. chart series colors in recharts. */
-  --color-primary: #0f6b5c;
-  --color-primary-dark: #0a4f44;
-  --color-secondary: #c97b3d;
-  --color-success: #1e8e5a;
-  --color-warning: #b7791f;
-  --color-error: #d64545;
-  --color-info: #2f6fb0;
+  /* 60% Dominant Base: Vanilla Cream (Light Canvas & Clean Surfaces) */
+  --color-vanilla: #FFF6E8;
+  --color-vanilla-light: #FFFBF5;
+  --color-vanilla-dark: #F7E7CE;
+  --color-canvas: #FFF6E8;
+  --color-surface: #FFFFFF;
+
+  /* 30% Secondary Brand Structure: Cherry Velvet */
+  --color-cherry: #C1121F;
+  --color-cherry-dark: #980F19;
+  --color-cherry-light: #FDE8EA;
+  --color-primary: #C1121F;
+  --color-primary-dark: #980F19;
+  --color-primary-light: #FDE8EA;
+
+  /* 10% Accents: Sky Powder & Golden Typography Style */
+  --color-sky: #A9C6EA;
+  --color-sky-light: #EBF2FA;
+  --color-sky-dark: #7FA7D9;
+  --color-secondary: #A9C6EA;
+
+  /* Golden Typography & Royal Trim */
+  --color-gold: #C59B27;
+  --color-gold-light: #FFF4D2;
+  --color-gold-dark: #9A7513;
+  --color-gold-metallic: #D4AF37;
+
+  /* Deep Ink & Borders */
+  --color-ink: #1F1516;
+  --color-ink-secondary: #5C4A4D;
+  --color-ink-muted: #8C787B;
+  --color-border: #1F1516;
+
+  /* Semantic status colors */
+  --color-success: #15803D;
+  --color-warning: #B45309;
+  --color-error: #C1121F;
+  --color-info: #2563EB;
 }
 
 body {
-  background-color: #f7f8f6;
+  background-color: #FFF6E8;
+  color: #1F1516;
+  font-family: 'Kaltera', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Premium Golden Typography styles */
+.text-gold-gradient {
+  background: linear-gradient(135deg, #A67C1E 0%, #D4AF37 40%, #F5E5A4 70%, #946C15 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-cherry-gradient {
+  background: linear-gradient(135deg, #C1121F 0%, #E63946 50%, #980F19 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.badge-gold {
+  background: linear-gradient(135deg, #FFF6E8 0%, #FFF4D2 100%);
+  border: 2px solid #C59B27;
+  color: #87620C;
+}
+
+.badge-sky {
+  background: #EBF2FA;
+  border: 2px solid #1F1516;
+  color: #1F1516;
+}
+
+.badge-cherry {
+  background: #C1121F;
+  border: 2px solid #1F1516;
+  color: #FFFFFF;
 }
