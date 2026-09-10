@@ -40,16 +40,16 @@ export default function ServiceDetailScreen({ route, navigation }: Props) {
   const [service, setService] = useState<ServiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
 
   const load = useCallback(() => {
     setLoading(true);
     getService(serviceId, location?.latitude, location?.longitude, location?.pincode)
       .then((data) => {
         setService(data);
-        setSelectedPackageId(
-          data.packages?.find((p) => p.isDefault)?.id ?? data.packages?.[0]?.id ?? null
-        );
+        const defaultId =
+          data.packages?.find((p) => p.isDefault)?.id ?? data.packages?.[0]?.id ?? null;
+        setSelectedTaskIds(defaultId ? [defaultId] : []);
         setError(false);
       })
       .catch(() => setError(true))
@@ -65,12 +65,47 @@ export default function ServiceDetailScreen({ route, navigation }: Props) {
 
   const money = (n: number) => formatCurrency(n, i18n.language);
   const packages: ServicePackage[] = service.packages ?? [];
-  const selected = packages.find((p) => p.id === selectedPackageId) ?? null;
-  // Everything downstream — price, duration, split, CTA — follows the
-  // selected package; the service-level figures are only the fallback for
-  // a service that has no packages at all.
-  const activePrice = selected?.price ?? service.basePrice;
-  const activeSplit = selected?.pricePreview.standard ?? service.pricePreview?.standard ?? null;
+
+  const toggleTask = (id: string) => {
+    setSelectedTaskIds((prev) => {
+      if (prev.includes(id)) {
+        if (prev.length <= 1) return prev; // Keep at least one item ticked
+        return prev.filter((item) => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  const selectedTasks = packages.filter((p) => selectedTaskIds.includes(p.id));
+  const activePrice =
+    selectedTasks.length > 0
+      ? selectedTasks.reduce((sum, p) => sum + p.price, 0)
+      : service.basePrice;
+
+  // Exact server-matching fair wage split aggregated across all ticked tasks
+  const activeSplit =
+    selectedTasks.length > 0
+      ? {
+          totalAmount: selectedTasks.reduce(
+            (sum, p) => sum + (p.pricePreview?.standard?.totalAmount ?? p.price),
+            0
+          ),
+          workerShare: selectedTasks.reduce(
+            (sum, p) => sum + (p.pricePreview?.standard?.workerShare ?? Math.round(p.price * 0.8)),
+            0
+          ),
+          federationFee: selectedTasks.reduce(
+            (sum, p) => sum + (p.pricePreview?.standard?.federationFee ?? Math.round(p.price * 0.1)),
+            0
+          ),
+          welfareContribution: selectedTasks.reduce(
+            (sum, p) => sum + (p.pricePreview?.standard?.welfareContribution ?? Math.round(p.price * 0.03)),
+            0
+          ),
+          emergencyBonus: 0,
+        }
+      : service.pricePreview?.standard ?? null;
   const duration =
     service.durationMinMinutes && service.durationMaxMinutes
       ? `${service.durationMinMinutes}–${service.durationMaxMinutes} ${t("serviceDetail.minutes")}`
@@ -142,18 +177,28 @@ export default function ServiceDetailScreen({ route, navigation }: Props) {
         {packages.length > 0 && (
           <View
             style={styles.packageSection}
-            accessibilityRole="radiogroup"
-            accessibilityLabel={t("packages.choosePackage")}
+            accessibilityLabel={t("packages.chooseProblems", "Select issues or tasks")}
           >
-            <Text style={styles.listTitle}>{t("packages.choosePackage")}</Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.listTitle}>{t("packages.chooseProblems", "Select issues or tasks")}</Text>
+              <View style={styles.selectedCountPill}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+                <Text style={styles.selectedCountText}>
+                  {selectedTasks.length} {selectedTasks.length === 1 ? "task selected" : "tasks selected"}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.sectionSubtitle}>
+              Tick the specific tasks needed. Pricing is itemized dynamically into your checkout bill.
+            </Text>
             {packages.map((p, i) => (
               <ServicePackageCard
                 key={p.id}
                 pkg={p}
                 index={i}
                 total={packages.length}
-                selected={p.id === selectedPackageId}
-                onSelect={() => setSelectedPackageId(p.id)}
+                selected={selectedTaskIds.includes(p.id)}
+                onSelect={() => toggleTask(p.id)}
                 money={money}
               />
             ))}
@@ -184,10 +229,7 @@ export default function ServiceDetailScreen({ route, navigation }: Props) {
           </Card>
         )}
 
-        {/* How the dispatch + OTP model actually works. This is product
-            mechanics, not marketing: it is the answer to "why can't I pick
-            my own professional", which is the first thing a customer
-            familiar with other apps will ask. */}
+        {/* How the dispatch + OTP model actually works */}
         <Card style={styles.listCard} elevated={false}>
           <Text style={styles.listTitle}>{t("serviceDetail.howItWorks")}</Text>
           {[1, 2, 3, 4].map((n) => (
@@ -210,11 +252,11 @@ export default function ServiceDetailScreen({ route, navigation }: Props) {
           <Card style={styles.coopCard} elevated={false}>
             <Text style={styles.coopTitle}>{t("serviceDetail.whereMoneyGoes")}</Text>
             <Text style={styles.splitCaption}>
-              {selected
-                ? t("packages.selected", { name: selected.name })
+              {selectedTasks.length > 0
+                ? `${selectedTasks.length} ${selectedTasks.length === 1 ? "task" : "tasks"} selected (${money(activePrice)})`
                 : t("serviceDetail.onABooking", { price: money(activeSplit.totalAmount) })}
             </Text>
-            <SplitRow label={t("packages.packagePrice")} value={money(activeSplit.totalAmount)} />
+            <SplitRow label={t("packages.packagePrice", "Estimated total")} value={money(activeSplit.totalAmount)} />
             <SplitRow
               label={t("fairPricing.workerShare")}
               value={money(activeSplit.workerShare)}
@@ -286,18 +328,23 @@ export default function ServiceDetailScreen({ route, navigation }: Props) {
         <View style={styles.ctaPrice}>
           <Text style={styles.ctaPriceValue}>{money(activePrice)}</Text>
           <Text style={styles.ctaPriceLabel}>
-            {selected ? selected.name : t("serviceDetail.onwards")}
+            {selectedTasks.length === 1
+              ? selectedTasks[0].name
+              : `${selectedTasks.length} tasks selected`}
           </Text>
         </View>
         <Button
           label={t("serviceDetail.bookThis")}
           variant="primary"
+          disabled={selectedTasks.length === 0}
           onPress={() =>
             navigation.navigate("BookingSlot", {
               serviceId: service.id,
               serviceName: service.name,
-              packageId: selected?.id,
-              packageName: selected?.name,
+              packageId: selectedTasks[0]?.id,
+              packageIds: selectedTaskIds,
+              packageName: selectedTasks.map((t) => t.name).join(" + "),
+              selectedTasks: selectedTasks.map((t) => ({ id: t.id, name: t.name, price: t.price })),
             })
           }
           style={styles.ctaButton}
@@ -367,6 +414,36 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   packageSection: { marginBottom: spacing.lg },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.xs,
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  selectedCountPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 4,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    gap: 4,
+  },
+  selectedCountText: {
+    ...type.caption,
+    fontWeight: "800",
+    color: colors.primary,
+    fontSize: 11,
+  },
+  sectionSubtitle: {
+    ...type.small,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
   listTitle: { ...type.h3, fontWeight: "800", color: colors.textPrimary, marginBottom: spacing.md },
   listRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: spacing.sm },
   tick: { marginRight: spacing.sm, marginTop: 2 },

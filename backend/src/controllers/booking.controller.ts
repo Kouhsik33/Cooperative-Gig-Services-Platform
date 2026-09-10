@@ -78,6 +78,7 @@ async function createBookingInternal(
   const {
     serviceId,
     packageId,
+    packageIds,
     scheduledAt,
     latitude,
     longitude,
@@ -97,25 +98,43 @@ async function createBookingInternal(
   const service = await prisma.service.findUnique({ where: { id: serviceId } });
   if (!service) return res.status(404).json({ error: "Service not found" });
 
-  // Pricing is resolved entirely server-side. The client sends only which
-  // package was chosen — never a price — so a tampered request cannot
+  // Pricing is resolved entirely server-side. The client sends which
+  // tasks/packages were chosen — never a price — so a tampered request cannot
   // change what is charged or what the worker is credited.
-  let selectedPackage = null;
-  if (packageId) {
-    selectedPackage = await prisma.servicePackage.findUnique({ where: { id: packageId } });
-    if (!selectedPackage) {
+  const requestedIds: string[] = Array.isArray(packageIds) && packageIds.length > 0
+    ? packageIds
+    : packageId
+    ? [packageId]
+    : [];
+
+  let selectedPackages: any[] = [];
+  if (requestedIds.length > 0) {
+    selectedPackages = await prisma.servicePackage.findMany({
+      where: { id: { in: requestedIds } },
+    });
+    if (selectedPackages.length === 0) {
       return res.status(404).json({ error: "Service package not found" });
     }
-    // A package belonging to a different service would silently price this
-    // booking off an unrelated tier.
-    if (selectedPackage.serviceId !== serviceId) {
+    const foreign = selectedPackages.find((p) => p.serviceId !== serviceId);
+    if (foreign) {
       return res.status(400).json({ error: "That package does not belong to this service" });
     }
   }
 
-  // One authoritative base figure feeding the one canonical split function.
-  const basePrice = selectedPackage ? selectedPackage.price : service.basePrice;
+  // Base price is the sum of all ticked tasks/problems
+  const basePrice =
+    selectedPackages.length > 0
+      ? selectedPackages.reduce((sum, p) => sum + p.price, 0)
+      : service.basePrice;
   const split = computeWageSplit(basePrice, isEmergency);
+
+  let finalInstructions = instructions ?? null;
+  if (selectedPackages.length > 0) {
+    const taskSummary = selectedPackages.map((p) => `${p.name} (₹${p.price})`).join(", ");
+    finalInstructions = instructions
+      ? `Tasks: ${taskSummary}\nNote: ${instructions}`
+      : `Tasks: ${taskSummary}`;
+  }
 
   const eligible = await findEligibleWorkers({
     serviceCategory: service.category,
@@ -128,7 +147,7 @@ async function createBookingInternal(
     data: {
       customerId: req.user!.id,
       serviceId,
-      packageId: selectedPackage?.id ?? null,
+      packageId: selectedPackages[0]?.id ?? null,
       isEmergency,
       scheduledAt: new Date(scheduledAt),
       latitude,
@@ -138,7 +157,7 @@ async function createBookingInternal(
       servicePincode: servicePincode ?? null,
       contactName: contactName ?? null,
       contactPhone: contactPhone ?? null,
-      instructions: instructions ?? null,
+      instructions: finalInstructions,
       totalAmount: split.totalAmount,
       workerShare: split.workerShare,
       federationFee: split.federationFee,

@@ -38,7 +38,9 @@ type SharedRoutes = {
   FairPricingBreakdown: {
     serviceId: string;
     packageId?: string;
+    packageIds?: string[];
     packageName?: string;
+    selectedTasks?: { id: string; name: string; price: number }[];
     scheduledAt: string;
     latitude: number;
     longitude: number;
@@ -59,7 +61,14 @@ type SharedRoutes = {
   AddAddress: undefined;
   ServiceDetail: { serviceId: string; serviceName: string };
   Notifications: undefined;
-  BookingSlot: { serviceId: string; serviceName: string; packageId?: string; packageName?: string };
+  BookingSlot: {
+    serviceId: string;
+    serviceName: string;
+    packageId?: string;
+    packageIds?: string[];
+    packageName?: string;
+    selectedTasks?: { id: string; name: string; price: number }[];
+  };
 };
 
 export type HomeStackParamList = SharedRoutes & {

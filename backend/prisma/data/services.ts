@@ -2,26 +2,23 @@
 //
 // Shared by the seed and the backfill script so the two cannot describe
 // the catalog differently — the detail content below is what a customer
-// reads on the service page, and it having drifted between "what we seed"
-// and "what we ship" would be invisible until someone noticed a service
-// promising something it doesn't do.
+// reads on the service page.
+//
+// Base prices represent the realistic "starting from" price of the smallest
+// problem/task item for that service.
 
-// Service-detail content (master prompt §12) — what's included, what
-// isn't, and how long it takes. Written per service rather than
-// generated, because a vague inclusion list is exactly the kind of
-// filler that makes a detail page worthless.
 export const serviceDefs = [
   {
     name: "Electrical Repair",
     category: "electrician",
-    basePrice: 500,
+    basePrice: 69,
     description:
-      "Switchboard, wiring and fixture faults diagnosed and repaired by a certified cooperative electrician.",
-    durationMinMinutes: 45,
-    durationMaxMinutes: 90,
+      "Switchboard, socket, wiring and fixture repairs by a certified cooperative electrician.",
+    durationMinMinutes: 15,
+    durationMaxMinutes: 75,
     inclusions: [
       "Fault diagnosis and safety check",
-      "Switch, socket and fixture repair",
+      "Switch, socket and regulator repair",
       "Minor wiring correction",
       "Post-repair load test",
     ],
@@ -30,15 +27,15 @@ export const serviceDefs = [
   {
     name: "Plumbing Repair",
     category: "plumber",
-    basePrice: 450,
+    basePrice: 89,
     description:
-      "Leak, blockage and fitting repairs for taps, pipes and bathroom fixtures.",
-    durationMinMinutes: 45,
-    durationMaxMinutes: 90,
+      "Leak, blockage and fitting repairs for taps, flush tanks, pipes and bathroom fixtures.",
+    durationMinMinutes: 15,
+    durationMaxMinutes: 60,
     inclusions: [
       "Leak detection and sealing",
-      "Tap, mixer and shower repair",
-      "Basic drain unblocking",
+      "Tap, mixer and jet spray repair",
+      "Drain and waste unclogging",
       "Fitting tightening and testing",
     ],
     exclusions: ["Pipes, taps and sanitaryware", "Concealed pipe chasing", "Overhead tank replacement"],
@@ -46,78 +43,78 @@ export const serviceDefs = [
   {
     name: "Elderly Care Visit",
     category: "caregiver",
-    basePrice: 600,
+    basePrice: 99,
     description:
-      "A trained caregiver visits to assist with daily routine, mobility and medication reminders.",
-    durationMinMinutes: 120,
-    durationMaxMinutes: 180,
+      "A trained caregiver visits to assist with vitals check, routine, mobility and medication reminders.",
+    durationMinMinutes: 25,
+    durationMaxMinutes: 75,
     inclusions: [
-      "Companionship and wellbeing check",
+      "Vitals check and medication schedule log",
       "Mobility and daily-routine assistance",
-      "Medication reminders",
-      "Light meal preparation",
+      "Companionship and wellness care",
+      "Light meal & hydration support",
     ],
     exclusions: ["Clinical or nursing procedures", "Overnight stay", "Prescription medicines"],
   },
   {
     name: "Home Deep Cleaning",
     category: "cleaner",
-    basePrice: 400,
-    description: "Room-by-room deep clean including floors, surfaces, fittings and bathrooms.",
-    durationMinMinutes: 120,
-    durationMaxMinutes: 240,
+    basePrice: 99,
+    description: "Itemized cleaning for bathrooms, kitchen counters, fans, balconies, and floors.",
+    durationMinMinutes: 25,
+    durationMaxMinutes: 80,
     inclusions: [
-      "Floor scrubbing and mopping",
-      "Bathroom descaling and sanitising",
-      "Kitchen surface degreasing",
-      "Dusting of fittings and fixtures",
+      "Tile scrubbing and hard water descaling",
+      "Kitchen surface and sink degreasing",
+      "Ceiling fan and blind dusting",
+      "Balcony wash and machine floor scrub",
     ],
     exclusions: ["Exterior window facades", "Furniture shifting", "Pest control"],
   },
   {
     name: "Local Driver (per trip)",
     category: "driver",
-    basePrice: 350,
-    description: "A verified driver for your own vehicle, for local trips within the city.",
-    durationMinMinutes: 60,
+    basePrice: 129,
+    description: "A verified cooperative driver for your vehicle, for local errands, transit, or day trips.",
+    durationMinMinutes: 30,
     durationMaxMinutes: 180,
-    inclusions: ["Verified, licence-checked driver", "Local city trip", "Careful vehicle handling"],
+    inclusions: ["Verified, licence-checked driver", "Local city driving & errands", "Careful vehicle handling"],
     exclusions: ["Fuel, tolls and parking", "Outstation travel", "Vehicle provided by us"],
   },
   {
     name: "Gardening & Lawn Care",
     category: "gardener",
-    basePrice: 300,
-    description: "Lawn trimming, plant care and garden tidying by an experienced gardener.",
-    durationMinMinutes: 60,
-    durationMaxMinutes: 120,
-    inclusions: ["Lawn mowing and edging", "Plant pruning and shaping", "Weeding", "Green-waste clearing"],
+    basePrice: 79,
+    description: "Potted plant care, lawn mowing, hedge trimming, weeding, and garden clean-up.",
+    durationMinMinutes: 20,
+    durationMaxMinutes: 70,
+    inclusions: ["Pot repotting & nutrients", "Plant pruning and hedge shaping", "Weeding & bed clearing", "Green-waste sweeping"],
     exclusions: ["Plants, soil and fertiliser", "Tree felling", "Landscaping design"],
   },
   {
     name: "Appliance Repair",
     category: "technician",
-    basePrice: 550,
+    basePrice: 129,
     description:
-      "Diagnosis and repair of washing machines, refrigerators, microwaves and other home appliances.",
-    durationMinMinutes: 45,
-    durationMaxMinutes: 120,
+      "Diagnosis and repair of washing machines, refrigerators, microwaves, mixers, and geysers.",
+    durationMinMinutes: 20,
+    durationMaxMinutes: 60,
     inclusions: ["Fault diagnosis", "Mechanical and electrical repair", "Performance test after repair"],
     exclusions: ["Spare parts", "Gas refilling", "Appliances still under manufacturer warranty"],
   },
   {
     name: "AC Servicing",
     category: "technician",
-    basePrice: 650,
+    basePrice: 149,
     description:
-      "Full service of split or window air conditioners — cleaning, cooling check and basic troubleshooting.",
-    durationMinMinutes: 60,
-    durationMaxMinutes: 90,
+      "Targeted service of split or window ACs — filter cleaning, leak fix, deep foam wash, and diagnostics.",
+    durationMinMinutes: 20,
+    durationMaxMinutes: 60,
     inclusions: [
-      "Filter and coil cleaning",
-      "Drain line clearing",
-      "Cooling performance check",
-      "Basic troubleshooting",
+      "Filter and grill jet wash",
+      "Drain line clearing & leak fix",
+      "Cooling coil foam service",
+      "Gas pressure inspection",
     ],
     exclusions: ["Gas refilling", "Compressor or PCB replacement", "Installation or uninstallation"],
   },

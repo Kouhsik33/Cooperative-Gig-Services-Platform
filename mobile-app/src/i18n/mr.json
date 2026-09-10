@@ -433,10 +433,11 @@
   },
   "packages": {
     "choosePackage": "पॅकेज निवडा",
+    "chooseProblems": "समस्या किंवा कामे निवडा",
     "recommended": "शिफारस केलेले",
     "selected": "निवडलेले: {{name}}",
     "packagePrice": "पॅकेज किंमत",
-    "noPackages": "ही सेवा एकाच प्रमाणित दराने दिली जाते."
+    "noPackages": "ही सेवा एकाच मानक दराने उपलब्ध आहे."
   },
   "workerJob": {
     "startNavigating": "मार्ग सुरू करा",

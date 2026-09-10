@@ -16,7 +16,8 @@ import {
   PriceBreakdown,
   SkeletonList,
 } from "../../components/ui";
-import { colors, radius, spacing, type } from "../../theme/tokens";
+import { borders, colors, radius, spacing, type } from "../../theme/tokens";
+import { Ionicons } from "@expo/vector-icons";
 
 type Props = NativeStackScreenProps<HomeStackParamList, "FairPricingBreakdown">;
 
@@ -36,7 +37,9 @@ export default function FairPricingBreakdownScreen({ route, navigation }: Props)
   const {
     serviceId,
     packageId,
+    packageIds,
     packageName,
+    selectedTasks,
     scheduledAt,
     latitude,
     longitude,
@@ -76,6 +79,7 @@ export default function FairPricingBreakdownScreen({ route, navigation }: Props)
       const booking = await create({
         serviceId,
         packageId,
+        packageIds,
         scheduledAt,
         latitude,
         longitude,
@@ -106,15 +110,30 @@ export default function FairPricingBreakdownScreen({ route, navigation }: Props)
   const money = (n: number) => formatCurrency(n, i18n.language);
   const chosen = packageId ? service.packages?.find((p) => p.id === packageId) : null;
 
-  // Server-computed by the same computeWageSplit the booking will use, so
-  // what is shown here and what is charged cannot diverge.
-  const preview: WageSplitPreview | null = chosen
-    ? isEmergency
-      ? chosen.pricePreview.emergency
-      : chosen.pricePreview.standard
-    : isEmergency
-    ? service.pricePreview?.emergency ?? null
-    : service.pricePreview?.standard ?? null;
+  // Multi-item task resolution: aggregate previews across all selected tasks
+  const chosenPackages = packageIds?.length
+    ? service.packages?.filter((p) => packageIds.includes(p.id)) ?? []
+    : chosen
+    ? [chosen]
+    : [];
+
+  let preview: WageSplitPreview | null = null;
+  if (chosenPackages.length > 0) {
+    const previews = chosenPackages.map((p) =>
+      isEmergency ? p.pricePreview.emergency : p.pricePreview.standard
+    );
+    preview = {
+      totalAmount: previews.reduce((sum, p) => sum + p.totalAmount, 0),
+      workerShare: previews.reduce((sum, p) => sum + p.workerShare, 0),
+      federationFee: previews.reduce((sum, p) => sum + p.federationFee, 0),
+      welfareContribution: previews.reduce((sum, p) => sum + p.welfareContribution, 0),
+      emergencyBonus: previews.reduce((sum, p) => sum + p.emergencyBonus, 0),
+    };
+  } else {
+    preview = isEmergency
+      ? service.pricePreview?.emergency ?? null
+      : service.pricePreview?.standard ?? null;
+  }
 
   if (!preview) {
     return <ErrorState message={t("fairPricing.loadError")} onRetry={load} retryLabel={t("common.retry")} />;
@@ -130,15 +149,25 @@ export default function FairPricingBreakdownScreen({ route, navigation }: Props)
         {isEmergency ? t("fairPricing.emergencySubtitle") : t("fairPricing.standardSubtitle")}
       </Text>
 
-      {/* What is actually being booked. Previously this screen showed only
-          numbers, so the customer had to trust that the price belonged to
-          the service and slot they had chosen. */}
+      {/* What is actually being booked. Shows the itemized breakdown of each problem/task chosen */}
       <Card style={styles.card}>
         <Text style={styles.sectionLabel}>{t("fairPricing.summary")}</Text>
         <Text style={styles.serviceName}>{service.name}</Text>
-        {(chosen?.name ?? packageName) && (
+        {chosenPackages.length > 0 ? (
+          <View style={styles.taskListCard}>
+            {chosenPackages.map((task) => (
+              <View key={task.id} style={styles.taskItemRow}>
+                <View style={styles.taskItemLeft}>
+                  <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
+                  <Text style={styles.taskItemName}>{task.name}</Text>
+                </View>
+                <Text style={styles.taskItemPrice}>{money(task.price)}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (chosen?.name ?? packageName) ? (
           <Text style={styles.packageName}>{chosen?.name ?? packageName}</Text>
-        )}
+        ) : null}
         <SummaryRow label={t("fairPricing.when")} value={formatDateTime(scheduledAt, i18n.language)} />
         {address ? <SummaryRow label={t("fairPricing.where")} value={address} /> : null}
       </Card>
@@ -201,6 +230,39 @@ const styles = StyleSheet.create({
   sectionLabel: { ...type.caption, color: colors.textMuted, marginBottom: spacing.xs },
   serviceName: { ...type.h3, color: colors.textPrimary },
   packageName: { ...type.smallMedium, color: colors.primaryDark, marginTop: 2 },
+  taskListCard: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+  },
+  taskItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+    gap: spacing.sm,
+  },
+  taskItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: spacing.xs,
+  },
+  taskItemName: {
+    ...type.small,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  taskItemPrice: {
+    ...type.small,
+    fontWeight: "800",
+    color: colors.primary,
+  },
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",

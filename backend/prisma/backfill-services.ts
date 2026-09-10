@@ -1,16 +1,8 @@
 // Backfills service-detail content (description, duration, inclusions,
-// exclusions) onto services that already exist.
-//
-// prisma/seed.ts is not idempotent — it creates rows unconditionally, so
-// re-running it against a populated database duplicates every federation,
-// worker and booking. This script exists so an existing demo database can
-// pick up new catalog content without losing its booking history, which is
-// what the AI forecast and the welfare ledger are built from.
+// exclusions, and basePrice) onto services that already exist, and replaces
+// legacy monolithic packages with granular problem-based task options.
 //
 //   npx ts-node prisma/backfill-services.ts
-//
-// Matches on name, updates content only, and never touches basePrice or
-// category — those are referenced by existing bookings and by dispatch.
 
 import { PrismaClient } from "@prisma/client";
 import { serviceDefs } from "./data/services";
@@ -31,6 +23,7 @@ async function main() {
     await prisma.service.update({
       where: { id: existing.id },
       data: {
+        basePrice: def.basePrice,
         description: def.description,
         durationMinMinutes: def.durationMinMinutes,
         durationMaxMinutes: def.durationMaxMinutes,
@@ -41,9 +34,7 @@ async function main() {
     updated++;
   }
 
-  // Packages are upserted on (serviceId, name) so re-running is safe and
-  // price/content edits propagate without orphaning any booking that
-  // already references a package row.
+  // Packages / Task items are updated. Remove obsolete legacy tiers first.
   let packagesUpserted = 0;
   for (const [serviceName, defs] of Object.entries(packageDefs)) {
     const service = await prisma.service.findFirst({ where: { name: serviceName } });
@@ -51,6 +42,17 @@ async function main() {
       missing.push(`${serviceName} (packages)`);
       continue;
     }
+
+    const currentNames = defs.map((d) => d.name);
+    // Remove obsolete packages not in the new definition that have no bookings
+    await prisma.servicePackage.deleteMany({
+      where: {
+        serviceId: service.id,
+        name: { notIn: currentNames },
+        bookings: { none: {} },
+      },
+    });
+
     for (const def of defs) {
       await prisma.servicePackage.upsert({
         where: { serviceId_name: { serviceId: service.id, name: def.name } },
@@ -61,12 +63,9 @@ async function main() {
     }
   }
 
-  console.log(`Backfilled ${updated} service(s), ${packagesUpserted} package(s).`);
+  console.log(`Backfilled ${updated} service(s), ${packagesUpserted} package(s)/task item(s).`);
   if (missing.length > 0) {
-    // Reported rather than created: a service present in the catalog file
-    // but absent from the database means the database was seeded from a
-    // different catalog, and silently inserting would hide that.
-    console.warn(`Not found in database (run the seed instead): ${missing.join(", ")}`);
+    console.warn(`Not found in database: ${missing.join(", ")}`);
   }
 }
 

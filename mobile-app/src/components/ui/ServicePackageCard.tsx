@@ -4,14 +4,11 @@ import { Ionicons } from "@expo/vector-icons";
 import type { ServicePackage } from "../../api/types";
 import { borders, colors, layout, radius, shadow, spacing, type } from "../../theme/tokens";
 
-// One selectable service tier.
+// Selectable task / problem item with a tick button.
 //
-// Implemented as a real radio group rather than styled buttons: each card
-// carries accessibilityRole="radio" with its selected state, so a screen
-// reader announces "Standard, selected, 2 of 3" instead of reading three
-// unrelated blocks of text. Pressable (not TouchableOpacity) per the
-// react-native guidance, with a pressed style that changes colour only —
-// never layout — so selecting a tier cannot make the list jump.
+// Designed as an accessible checkbox where the customer ticks the specific
+// tasks they need (e.g. switchboard repair, socket fix) to dynamically
+// compute the bill.
 export default function ServicePackageCard({
   pkg,
   selected,
@@ -28,11 +25,12 @@ export default function ServicePackageCard({
   total: number;
 }) {
   const { t } = useTranslation();
+
   return (
     <Pressable
       onPress={onSelect}
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected }}
       accessibilityLabel={`${pkg.name}. ${money(pkg.price)}. ${pkg.durationMinMinutes} to ${pkg.durationMaxMinutes} ${t("serviceDetail.minutes")}.`}
       accessibilityHint={`${index + 1} of ${total}`}
       style={({ pressed }) => [
@@ -42,9 +40,11 @@ export default function ServicePackageCard({
       ]}
     >
       <View style={styles.head}>
-        <View style={[styles.radio, selected && styles.radioOn]}>
-          {selected && <View style={styles.radioDot} />}
+        {/* Neobrutalist Tick Button / Checkbox */}
+        <View style={[styles.checkbox, selected && styles.checkboxOn]}>
+          {selected && <Ionicons name="checkmark-sharp" size={16} color="#FFFFFF" />}
         </View>
+
         <View style={styles.headText}>
           <View style={styles.nameRow}>
             <Text style={[styles.name, selected && styles.nameSelected]}>{pkg.name}</Text>
@@ -56,22 +56,30 @@ export default function ServicePackageCard({
           </View>
           <Text style={styles.description}>{pkg.description}</Text>
         </View>
+
         <View style={styles.priceCol}>
-          <Text style={[styles.price, selected && styles.priceSelected]}>{money(pkg.price)}</Text>
+          <Text style={[styles.price, selected && styles.priceSelected]}>
+            {money(pkg.price)}
+          </Text>
           <Text style={styles.duration}>
             {pkg.durationMinMinutes}–{pkg.durationMaxMinutes} {t("serviceDetail.minutes")}
           </Text>
         </View>
       </View>
 
-      {/* Inclusions only for the chosen tier — showing every list at once
-          turns the comparison into a wall of text. */}
-      {selected && pkg.inclusions.length > 0 && (
-        <View style={styles.inclusions}>
+      {/* Task inclusions */}
+      {pkg.inclusions.length > 0 && (
+        <View style={[styles.inclusions, selected && styles.inclusionsSelected]}>
           {pkg.inclusions.map((inc) => (
             <View key={inc} style={styles.inclusionRow}>
-              <Ionicons name="checkmark" size={14} color={colors.success} />
-              <Text style={styles.inclusionText}>{inc}</Text>
+              <Ionicons
+                name="checkmark-circle"
+                size={14}
+                color={selected ? colors.primary : colors.success}
+              />
+              <Text style={[styles.inclusionText, selected && styles.inclusionTextSelected]}>
+                {inc}
+              </Text>
             </View>
           ))}
         </View>
@@ -96,12 +104,17 @@ const styles = StyleSheet.create({
     borderWidth: borders.thick,
     backgroundColor: colors.primaryLight,
   },
-  cardPressed: { backgroundColor: colors.background },
-  head: { flexDirection: "row", alignItems: "flex-start" },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  cardPressed: {
+    opacity: 0.85,
+  },
+  head: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.sm,
     borderWidth: borders.default,
     borderColor: borders.color,
     marginRight: spacing.md,
@@ -109,13 +122,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surface,
+    ...shadow.sm,
   },
-  radioOn: { borderColor: colors.primary },
-  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.primary },
-  headText: { flex: 1, marginRight: spacing.md },
-  nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm },
-  name: { ...type.bodyMedium, fontWeight: "800", color: colors.textPrimary },
-  nameSelected: { color: colors.primary },
+  checkboxOn: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  headText: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  name: {
+    ...type.bodyMedium,
+    fontWeight: "800",
+    color: colors.textPrimary,
+  },
+  nameSelected: {
+    color: colors.primary,
+  },
   recommended: {
     backgroundColor: colors.skyLight,
     borderRadius: radius.pill,
@@ -124,18 +154,57 @@ const styles = StyleSheet.create({
     borderWidth: borders.thin,
     borderColor: borders.color,
   },
-  recommendedText: { ...type.caption, color: colors.textPrimary, fontWeight: "800", fontSize: 10 },
-  description: { ...type.small, color: colors.textSecondary, marginTop: 2 },
-  priceCol: { alignItems: "flex-end" },
-  price: { ...type.h3, fontWeight: "900", color: colors.textPrimary },
-  priceSelected: { color: colors.primary },
-  duration: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
+  recommendedText: {
+    ...type.caption,
+    color: colors.textPrimary,
+    fontWeight: "800",
+    fontSize: 10,
+  },
+  description: {
+    ...type.small,
+    color: colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  priceCol: {
+    alignItems: "flex-end",
+  },
+  price: {
+    ...type.h3,
+    fontWeight: "900",
+    color: colors.textPrimary,
+  },
+  priceSelected: {
+    color: colors.primary,
+  },
+  duration: {
+    ...type.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   inclusions: {
     marginTop: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: borders.color,
+    borderTopColor: "rgba(43, 45, 66, 0.08)",
   },
-  inclusionRow: { flexDirection: "row", alignItems: "center", marginBottom: spacing.xs, gap: spacing.sm },
-  inclusionText: { ...type.small, fontWeight: "600", color: colors.textPrimary, flex: 1 },
+  inclusionsSelected: {
+    borderTopColor: "rgba(239, 35, 60, 0.2)",
+  },
+  inclusionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.xs,
+    gap: spacing.sm,
+  },
+  inclusionText: {
+    ...type.small,
+    fontWeight: "500",
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  inclusionTextSelected: {
+    color: colors.textPrimary,
+    fontWeight: "600",
+  },
 });

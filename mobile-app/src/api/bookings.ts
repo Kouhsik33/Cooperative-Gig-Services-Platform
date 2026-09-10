@@ -6,8 +6,10 @@ import { Booking, BookingStatus } from "./types";
 // broadcasts it to every eligible worker and the first to accept wins.
 export interface CreateBookingPayload {
   serviceId: string;
-  /** Chosen tier. The server resolves price from it — the app never sends money. */
+  /** Chosen tier or primary task. The server resolves price from it — the app never sends money. */
   packageId?: string;
+  /** Chosen task/problem IDs for multi-item bookings. */
+  packageIds?: string[];
   scheduledAt: string;
   latitude: number;
   longitude: number;

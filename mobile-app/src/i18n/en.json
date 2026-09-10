@@ -433,6 +433,7 @@
   },
   "packages": {
     "choosePackage": "Choose a package",
+    "chooseProblems": "Select issues or tasks",
     "recommended": "RECOMMENDED",
     "selected": "Selected: {{name}}",
     "packagePrice": "Package price",

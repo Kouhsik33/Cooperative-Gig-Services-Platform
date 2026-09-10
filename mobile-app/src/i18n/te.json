@@ -433,10 +433,11 @@
   },
   "packages": {
     "choosePackage": "ఒక ప్యాకేజీని ఎంచుకోండి",
+    "chooseProblems": "సమస్యలు లేదా పనులను ఎంచుకోండి",
     "recommended": "సిఫార్సు చేయబడింది",
-    "selected": "ఎంచుకున్నది: {{name}}",
+    "selected": "ఎంపిక చేయబడింది: {{name}}",
     "packagePrice": "ప్యాకేజీ ధర",
-    "noPackages": "ఈ సేవ ఒకే ప్రామాణిక రేటుకు అందించబడుతుంది."
+    "noPackages": "ఈ సేవ ఒకే ప్రామాణిక ధరతో అందించబడుతుంది."
   },
   "workerJob": {
     "startNavigating": "నావిగేషన్ ప్రారంభించండి",

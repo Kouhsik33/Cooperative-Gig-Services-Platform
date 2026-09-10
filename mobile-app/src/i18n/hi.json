@@ -433,6 +433,7 @@
   },
   "packages": {
     "choosePackage": "पैकेज चुनें",
+    "chooseProblems": "समस्याएँ या कार्य चुनें",
     "recommended": "अनुशंसित",
     "selected": "चयनित: {{name}}",
     "packagePrice": "पैकेज मूल्य",

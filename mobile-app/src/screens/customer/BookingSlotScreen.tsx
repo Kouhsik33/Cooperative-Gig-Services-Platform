@@ -5,7 +5,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { HomeStackParamList } from "../../navigation/CustomerNavigator";
 import { useServiceLocation } from "../../store/LocationContext";
 import { Button, Card, Chip, FormScreen, SectionHeader } from "../../components/ui";
-import { colors, radius, spacing, type } from "../../theme/tokens";
+import { borders, colors, radius, spacing, type } from "../../theme/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { icons, iconSize } from "../../theme/icons";
 
@@ -32,7 +32,7 @@ const TIME_SLOTS = ["09:00", "11:00", "13:00", "15:00", "17:00"];
 // booking twice.
 export default function BookingSlotScreen({ route, navigation }: Props) {
   const { t, i18n } = useTranslation();
-  const { serviceId, serviceName, packageId, packageName } = route.params;
+  const { serviceId, serviceName, packageId, packageIds, packageName, selectedTasks } = route.params;
   const { location } = useServiceLocation();
   const [instructions, setInstructions] = useState("");
 
@@ -69,7 +69,9 @@ export default function BookingSlotScreen({ route, navigation }: Props) {
     navigation.navigate("FairPricingBreakdown", {
       serviceId,
       packageId,
+      packageIds,
       packageName,
+      selectedTasks,
       scheduledAt: scheduledAt.toISOString(),
       latitude: location.latitude,
       longitude: location.longitude,
@@ -87,7 +89,20 @@ export default function BookingSlotScreen({ route, navigation }: Props) {
     <FormScreen contentContainerStyle={styles.container}>
       <Card style={styles.summaryCard}>
         <Text style={styles.title}>{serviceName}</Text>
-        {packageName ? <Text style={styles.packageLine}>{packageName}</Text> : null}
+        {selectedTasks && selectedTasks.length > 0 ? (
+          <View style={styles.taskListWrap}>
+            {selectedTasks.map((task) => (
+              <View key={task.id} style={styles.taskPill}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+                <Text style={styles.taskPillText}>
+                  {task.name} (₹{task.price})
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : packageName ? (
+          <Text style={styles.packageLine}>{packageName}</Text>
+        ) : null}
         <Text style={styles.subtitle}>{t("customer.dispatchNote")}</Text>
       </Card>
 
@@ -142,6 +157,29 @@ export default function BookingSlotScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   packageLine: { ...type.smallMedium, color: colors.primaryDark, marginBottom: spacing.md },
+  taskListWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  taskPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 4,
+    borderWidth: borders.thin,
+    borderColor: borders.color,
+    gap: 4,
+  },
+  taskPillText: {
+    ...type.caption,
+    fontWeight: "700",
+    color: colors.primary,
+  },
   container: { padding: spacing.xl, paddingBottom: spacing.xxxl },
   summaryCard: { marginBottom: spacing.xl },
   title: { ...type.h3, color: colors.textPrimary },
